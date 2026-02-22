@@ -236,7 +236,7 @@ export const setPlayerFaction = mutation({
  * Start the game
  *
  * Validates that the host is starting the game, sets room status to "playing",
- * and initializes the gameState record for the room.
+ * initializes gameState, creates starting sectors, and sets up player resources.
  */
 export const startGame = mutation({
   args: {
@@ -287,14 +287,125 @@ export const startGame = mutation({
     // Update room status to playing
     await ctx.db.patch(args.roomId, { status: "playing" });
 
+    // Shuffle player order and assign turn order
+    const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
+    for (let i = 0; i < shuffledPlayers.length; i++) {
+      const playerRecord = await ctx.db
+        .query("players")
+        .withIndex("by_room_and_player", (q) =>
+          q.eq("roomId", args.roomId).eq("playerId", shuffledPlayers[i].playerId)
+        )
+        .first();
+      if (playerRecord) {
+        await ctx.db.patch(playerRecord._id, { turnOrder: i });
+      }
+    }
+
     // Initialize game state
     await ctx.db.insert("gameState", {
       roomId: args.roomId,
       currentRound: 1,
-      currentPhase: "setup",
+      currentPhase: "action",
+      activePlayerId: shuffledPlayers[0].playerId,
       passedPlayers: [],
+      activeCombats: [],
+      roundStartTime: Date.now(),
       lastUpdate: Date.now(),
     });
+
+    // Initialize player resources for each player
+    for (const player of players) {
+      // Get faction data for starting resources
+      const faction = player.factionId ? await ctx.db.get(player.factionId) : null;
+
+      const startingMaterials = faction?.startingMaterials ?? 4;
+      const startingScience = faction?.startingScience ?? 2;
+      const startingMoney = faction?.startingMoney ?? 2;
+
+      await ctx.db.insert("playerResources", {
+        roomId: args.roomId,
+        playerId: player.playerId,
+        materials: startingMaterials,
+        science: startingScience,
+        money: startingMoney,
+        materialsTrack: 0,
+        scienceTrack: 0,
+        moneyTrack: 0,
+        usedInfluenceDisks: 0,
+        usedColonyShips: 0,
+        victoryPoints: 0,
+        hasPassed: false,
+      });
+    }
+
+    // Create center sector (Galactic Center)
+    await ctx.db.insert("sectors", {
+      roomId: args.roomId,
+      position: { q: 0, r: 0 },
+      type: "center",
+      planets: [],
+      hasAncient: false,
+      warpPortals: [0, 1, 2, 3, 4, 5], // All 6 sides have wormholes
+      hasDiscoveryTile: false,
+      rotation: 0,
+    });
+
+    // Create home sectors for each player at predefined positions
+    // Positions are based on ring 1 coordinates, evenly spaced
+    const homeSectorPositions: Record<number, Array<{ q: number; r: number }>> = {
+      2: [
+        { q: 0, r: -1 },  // North
+        { q: 0, r: 1 },   // South
+      ],
+      3: [
+        { q: 0, r: -1 },  // North
+        { q: 1, r: 0 },   // Southeast
+        { q: -1, r: 1 },  // Southwest
+      ],
+      4: [
+        { q: 0, r: -1 },  // North
+        { q: 1, r: 0 },   // East
+        { q: 0, r: 1 },   // South
+        { q: -1, r: 0 },  // West
+      ],
+      5: [
+        { q: 0, r: -1 },  // North
+        { q: 1, r: -1 },  // Northeast
+        { q: 1, r: 0 },   // Southeast
+        { q: 0, r: 1 },   // South
+        { q: -1, r: 0 },  // West
+      ],
+      6: [
+        { q: 0, r: -1 },  // North
+        { q: 1, r: -1 },  // Northeast
+        { q: 1, r: 0 },   // East
+        { q: 0, r: 1 },   // South
+        { q: -1, r: 1 },  // Southwest
+        { q: -1, r: 0 },  // West
+      ],
+    };
+
+    const positions = homeSectorPositions[players.length] || homeSectorPositions[2];
+
+    for (let i = 0; i < players.length; i++) {
+      const position = positions[i];
+
+      await ctx.db.insert("sectors", {
+        roomId: args.roomId,
+        position,
+        type: "starting",
+        planets: [
+          { type: "materials", isAdvanced: false },
+          { type: "materials", isAdvanced: false },
+          { type: "money", isAdvanced: false },
+        ],
+        hasAncient: false,
+        warpPortals: [0, 3], // Wormholes on opposite sides
+        hasDiscoveryTile: false,
+        controlledBy: shuffledPlayers[i].playerId,
+        rotation: 0,
+      });
+    }
 
     return true;
   },
