@@ -130,8 +130,8 @@ export default function EclipseIntegrated(){
 
   // MP ShipSnapshot conversion now lives in src/multiplayer/snapshot.ts
 
-  // Multiplayer state
-  const [gameMode, setGameMode] = useState<'single' | 'multiplayer'>('single');
+  // Multiplayer state - default to multiplayer since this is Eclipse Second Dawn
+  const [gameMode, setGameMode] = useState<'single' | 'multiplayer'>('multiplayer');
   const [multiplayerPhase, setMultiplayerPhase] = useState<'menu' | 'public' | 'lobby' | 'game'>('menu');
   const [currentRoomId, setCurrentRoomId] = useState<Id<"rooms"> | null>(null);
 
