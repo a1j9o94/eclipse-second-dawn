@@ -61,7 +61,7 @@ export const getCurrentRoundActions = query({
     const actions = await ctx.db
       .query("actionLog")
       .withIndex("by_room_round", (q) =>
-        q.eq("roomId", args.roomId).eq("round", gameState.currentRound)
+        q.eq("roomId", args.roomId).eq("round", gameState.currentRound ?? 1)
       )
       .collect();
 
@@ -93,7 +93,7 @@ export const getPlayerActionCount = query({
         q
           .eq("roomId", args.roomId)
           .eq("playerId", args.playerId)
-          .eq("round", gameState.currentRound)
+          .eq("round", gameState.currentRound ?? 1)
       )
       .collect();
 

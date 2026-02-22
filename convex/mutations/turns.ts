@@ -161,7 +161,7 @@ export const advanceToNextPhase = mutation({
     const currentPlayerIndex = playerIds.indexOf(gameState.activePlayerId || playerIds[0]);
 
     const turnState: TurnState = {
-      roundNum: gameState.currentRound,
+      roundNum: gameState.currentRound ?? 1,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       phase: gameState.currentPhase as any,
       currentPlayerIndex,
@@ -381,14 +381,14 @@ export const passTurn = mutation({
       .withIndex("by_room_player_round", (q) =>
         q.eq("roomId", args.roomId)
          .eq("playerId", args.playerId)
-         .eq("round", gameState.currentRound)
+         .eq("round", gameState.currentRound ?? 1)
       )
       .collect();
 
     await ctx.db.insert("actionLog", {
       roomId: args.roomId,
       playerId: args.playerId,
-      round: gameState.currentRound,
+      round: gameState.currentRound ?? 1,
       actionNumber: actionNumber.length + 1,
       actionType: "pass",
       materialsDelta: 0,
