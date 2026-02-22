@@ -1,0 +1,51 @@
+Scenario: Explore adjacent unoccupied sector
+  Given it is Alice's turn during the action phase
+  And Alice has at least 1 influence to spend
+  And there is an unexplored sector adjacent to Alice's home sector
+  When Alice selects the "Explore" action
+  And Alice clicks on the adjacent unexplored hex
+  Then a new sector tile is drawn and placed
+  And Alice's influence is reduced by 1
+  And the sector becomes visible to all players
+  And the action is recorded in the game log
+
+Scenario: Research technology with prerequisites met
+  Given it is Bob's turn during the action phase
+  And Bob has 6 science resources
+  And Bob has researched "Advanced Labs" (tier 1)
+  When Bob selects the "Research" action
+  And Bob chooses "Quantum Grid" (tier 2, requires Advanced Labs)
+  Then "Quantum Grid" is added to Bob's researched technologies
+  And Bob's science resources are reduced by 6
+  And Bob gains the benefits of the technology
+  And the tech appears in Bob's player dashboard
+
+Scenario: Build ship in controlled sector
+  Given it is Carol's turn during the action phase
+  And Carol controls a sector with a starbase
+  And Carol has 3 materials and 3 money
+  When Carol selects the "Build" action
+  And Carol chooses to build 1 Cruiser
+  Then the Cruiser appears in the sector
+  And Carol's materials are reduced by 3
+  And Carol's money is reduced by 3
+  And the ship count updates in Carol's dashboard
+
+Scenario: Upgrade ship component
+  Given it is Dave's turn during the action phase
+  And Dave has an Interceptor with basic weapons
+  And Dave has 4 money
+  When Dave selects the "Upgrade" action
+  And Dave chooses to upgrade the Interceptor's weapons to "Plasma Cannon"
+  Then the Interceptor's weapon slot shows "Plasma Cannon"
+  And Dave's money is reduced by 4
+  And the ship's combat stats update accordingly
+
+Scenario: Invalid action rejected with clear error
+  Given it is Alice's turn during the action phase
+  And Alice has 0 influence remaining
+  When Alice attempts to select the "Influence" action
+  Then the action button is disabled
+  And a tooltip displays "Insufficient influence"
+  And Alice cannot execute the action
+  And the game state remains unchanged

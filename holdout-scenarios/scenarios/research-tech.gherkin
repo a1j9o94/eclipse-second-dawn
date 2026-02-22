@@ -1,0 +1,42 @@
+Scenario: Research tier 1 technology with no prerequisites
+  Given Alice has 5 science resources
+  And Alice has not researched any technologies yet
+  When Alice researches "Advanced Mining"
+  Then "Advanced Mining" is added to Alice's technology list
+  And Alice's science resources are reduced by 5
+  And Alice immediately gains +1 material income per controlled sector
+  And the technology appears in Alice's player dashboard
+
+Scenario: Cannot research technology without prerequisites
+  Given Bob has 8 science resources
+  And Bob has not researched any tier 1 technologies
+  When Bob attempts to research "Fusion Drive" (requires "Advanced Propulsion")
+  Then the research action is rejected
+  And an error message displays "Prerequisites not met: Advanced Propulsion required"
+  And Bob's science resources remain unchanged
+  And the technology is not added to Bob's list
+
+Scenario: Research technology with multiple prerequisites
+  Given Carol has researched "Advanced Labs" and "Quantum Computing"
+  And Carol has 10 science resources
+  When Carol researches "Singularity Core" (requires both techs)
+  Then "Singularity Core" is added to Carol's technology list
+  And Carol's science resources are reduced by 10
+  And Carol gains the technology's benefits
+
+Scenario: Research technology that unlocks new ship parts
+  Given Dave has 6 science resources
+  And Dave has researched "Advanced Weapons"
+  When Dave researches "Plasma Missiles"
+  Then "Plasma Missiles" appears in Dave's available ship parts
+  And Dave can now equip Plasma Missiles when upgrading ships
+  And the ship upgrade UI shows the new part option
+
+Scenario: Technology tree shows correct availability
+  Given Alice is viewing the technology tree
+  And Alice has researched "Advanced Propulsion" and "Improved Hull"
+  Then all tier 1 technologies are shown as available
+  And tier 2 technologies requiring "Advanced Propulsion" are highlighted
+  And tier 2 technologies requiring other tier 1 techs are shown as locked
+  And tier 3 technologies are shown as locked
+  And each technology displays its cost and prerequisites clearly

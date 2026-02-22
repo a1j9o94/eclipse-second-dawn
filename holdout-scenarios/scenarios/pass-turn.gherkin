@@ -1,0 +1,47 @@
+Scenario: Player passes turn during action phase
+  Given it is Alice's turn during the action phase
+  And Alice has taken 2 actions already
+  When Alice clicks the "Pass" button
+  Then Alice's turn ends immediately
+  And the next player in turn order becomes active
+  And Alice cannot take any more actions this round
+  And the game log shows "Alice passed"
+
+Scenario: All players pass advances to combat phase
+  Given a 3-player game in the action phase
+  And Alice, Bob, and Carol have all passed
+  When the last player passes
+  Then the game phase transitions to "Combat"
+  And sectors with multiple players are identified for combat
+  And the combat resolution UI appears
+  And the action phase UI is hidden
+
+Scenario: Round advances after all phases complete
+  Given the game is in the cleanup phase
+  And all cleanup tasks are complete
+  When the cleanup phase finishes
+  Then the round counter increments by 1
+  And the game returns to the action phase
+  And players' actions are reset
+  And the first player in turn order becomes active
+
+Scenario: Turn order rotates correctly
+  Given a 4-player game with turn order: Alice, Bob, Carol, Dave
+  And it is Alice's turn
+  When Alice passes
+  Then it becomes Bob's turn
+  When Bob passes
+  Then it becomes Carol's turn
+  When Carol passes
+  Then it becomes Dave's turn
+  When Dave passes
+  Then the action phase ends
+
+Scenario: Player can see whose turn it is
+  Given a 3-player game in the action phase
+  And it is Bob's turn
+  Then Bob sees a prominent "Your Turn" indicator
+  And Alice sees "Waiting for Bob"
+  And Carol sees "Waiting for Bob"
+  And Bob's player card is highlighted
+  And the other players' cards are dimmed
