@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
@@ -53,6 +53,7 @@ export default function EclipseGamePage({
 
   // Mutations
   const passTurn = useMutation(api.mutations.turns.passTurn);
+  const advanceToNextPhase = useMutation(api.mutations.turns.advanceToNextPhase);
 
   // Game actions
   const actions = useGameActions();
@@ -65,12 +66,61 @@ export default function EclipseGamePage({
   // Get current player name
   const currentPlayerName = allPlayers?.find(p => p.playerId === gameState?.activePlayerId)?.playerName || 'Unknown';
 
+  // State for pass confirmation
+  const [showPassConfirm, setShowPassConfirm] = useState(false);
+
+  // Auto-advance phases when all players pass
+  useEffect(() => {
+    if (!gameState || !allPlayers || !playerId) return;
+
+    const currentPlayer = allPlayers.find(p => p.playerId === playerId);
+    const isHost = currentPlayer?.isHost || false;
+
+    // Only host should trigger auto-advance
+    if (!isHost) return;
+
+    const allPlayerIds = allPlayers.map(p => p.playerId);
+    const passedPlayerIds = gameState.passedPlayers || [];
+
+    // Check if all players have passed during action phase
+    if (
+      gameState.currentPhase === 'action' &&
+      allPlayerIds.length > 0 &&
+      passedPlayerIds.length === allPlayerIds.length &&
+      allPlayerIds.every(id => passedPlayerIds.includes(id))
+    ) {
+      // All players passed, advance to next phase
+      console.log('All players passed, auto-advancing phase...');
+      advanceToNextPhase({ roomId })
+        .then(() => console.log('Phase advanced successfully'))
+        .catch((error) => console.error('Failed to auto-advance phase:', error));
+    }
+
+    // For non-action phases, auto-advance quickly (combat, upkeep, income, cleanup are server-handled)
+    if (
+      gameState.currentPhase !== 'action' &&
+      gameState.currentPhase !== 'setup' &&
+      gameState.currentPhase !== 'finished'
+    ) {
+      // Short delay to let server process, then advance
+      const timer = setTimeout(() => {
+        console.log(`Auto-advancing ${gameState.currentPhase} phase...`);
+        advanceToNextPhase({ roomId })
+          .then(() => console.log('Phase advanced successfully'))
+          .catch((error) => console.error('Failed to auto-advance phase:', error));
+      }, 1500); // 1.5 second delay for visual feedback
+
+      return () => clearTimeout(timer);
+    }
+  }, [gameState, allPlayers, playerId, roomId, advanceToNextPhase]);
+
   // Handle pass action
   const handlePass = async () => {
     if (!playerId || !canAct) return;
 
     try {
       await passTurn({ roomId, playerId });
+      setShowPassConfirm(false);
     } catch (error) {
       console.error('Failed to pass turn:', error);
       alert(`Failed to pass: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -215,54 +265,127 @@ export default function EclipseGamePage({
     );
   }
 
+  // Phase color coding
+  const getPhaseColor = (phase: string | undefined) => {
+    switch (phase) {
+      case 'action':
+        return 'text-green-400';
+      case 'combat':
+        return 'text-red-400';
+      case 'upkeep':
+        return 'text-yellow-400';
+      case 'cleanup':
+        return 'text-purple-400';
+      case 'finished':
+        return 'text-blue-400';
+      default:
+        return 'text-gray-400';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
       {/* Phase Indicator Bar */}
-      <div className="bg-gray-800 border-b border-gray-700 p-4 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <div>
-            <span className="text-gray-400 text-sm">Round</span>
-            <div className="text-2xl font-bold text-blue-400">
-              {gameState.currentRound || 1}
+      <div className="bg-gray-800 border-b border-gray-700 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-8">
+            <div>
+              <span className="text-gray-400 text-sm">Round</span>
+              <div className="text-3xl font-bold text-blue-400">
+                {gameState.currentRound || 1}
+              </div>
+            </div>
+
+            <div>
+              <span className="text-gray-400 text-sm block">Phase</span>
+              <div className={`text-2xl font-bold capitalize ${getPhaseColor(gameState.currentPhase)}`}>
+                {gameState.currentPhase || 'setup'}
+              </div>
+            </div>
+
+            <div>
+              <span className="text-gray-400 text-sm block">Turn Status</span>
+              <div className="text-xl font-semibold">
+                {hasPassed ? (
+                  <span className="text-gray-500">Passed</span>
+                ) : isMyTurn ? (
+                  <span className="text-green-400 animate-pulse">Your Turn!</span>
+                ) : (
+                  <span className="text-yellow-400">Waiting for {currentPlayerName}...</span>
+                )}
+              </div>
             </div>
           </div>
 
-          <div>
-            <span className="text-gray-400 text-sm">Phase</span>
-            <div className="text-lg font-semibold text-green-400 capitalize">
-              {gameState.currentPhase || 'setup'}
-            </div>
-          </div>
+          <div className="flex items-center gap-4">
+            {canAct && (
+              <button
+                onClick={() => setShowPassConfirm(true)}
+                className="px-8 py-3 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-bold text-lg transition-all transform hover:scale-105 shadow-lg"
+              >
+                Pass Turn
+              </button>
+            )}
 
-          <div>
-            <span className="text-gray-400 text-sm">Current Turn</span>
-            <div className="text-lg font-semibold text-yellow-400">
-              {isMyTurn ? 'Your Turn' : currentPlayerName}
-            </div>
+            <button
+              onClick={onLeaveGame}
+              className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors"
+            >
+              Leave Game
+            </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <button
-            onClick={handlePass}
-            disabled={!canAct}
-            className={`px-6 py-2 rounded-lg font-semibold transition-colors ${
-              canAct
-                ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-            }`}
-          >
-            Pass
-          </button>
-
-          <button
-            onClick={onLeaveGame}
-            className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors"
-          >
-            Leave Game
-          </button>
+        {/* Player Pass Status */}
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-gray-400">Players:</span>
+          {allPlayers?.map((player) => {
+            const passed = gameState?.passedPlayers?.includes(player.playerId) || false;
+            return (
+              <div
+                key={player.playerId}
+                className={`px-3 py-1 rounded ${
+                  passed
+                    ? 'bg-gray-700 text-gray-400'
+                    : player.playerId === gameState?.activePlayerId
+                    ? 'bg-green-700 text-white'
+                    : 'bg-blue-700 text-white'
+                }`}
+              >
+                {player.playerName}
+                {passed && ' (Passed)'}
+                {player.playerId === gameState?.activePlayerId && !passed && ' (Active)'}
+              </div>
+            );
+          })}
         </div>
       </div>
+
+      {/* Pass Confirmation Modal */}
+      {showPassConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-8 max-w-md border border-gray-700">
+            <h2 className="text-2xl font-bold text-white mb-4">Pass Turn?</h2>
+            <p className="text-gray-300 mb-6">
+              Are you sure you want to pass? You will not be able to take any more actions this round.
+            </p>
+            <div className="flex gap-4">
+              <button
+                onClick={handlePass}
+                className="flex-1 px-6 py-3 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-bold"
+              >
+                Yes, Pass
+              </button>
+              <button
+                onClick={() => setShowPassConfirm(false)}
+                className="flex-1 px-6 py-3 rounded-lg bg-gray-600 hover:bg-gray-700 text-white font-bold"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Resource Bar */}
       <div className="bg-gray-800 border-b border-gray-700 p-3">
