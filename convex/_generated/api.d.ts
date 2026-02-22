@@ -23,6 +23,7 @@ import type * as helpers_log from "../helpers/log.js";
 import type * as migrations_clearAllData from "../migrations/clearAllData.js";
 import type * as migrations_clearOldGameState from "../migrations/clearOldGameState.js";
 import type * as mutations_actions from "../mutations/actions.js";
+import type * as mutations_rooms from "../mutations/rooms.js";
 import type * as mutations_seed from "../mutations/seed.js";
 import type * as mutations_turns from "../mutations/turns.js";
 import type * as queries_galaxy from "../queries/galaxy.js";
@@ -56,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   "migrations/clearAllData": typeof migrations_clearAllData;
   "migrations/clearOldGameState": typeof migrations_clearOldGameState;
   "mutations/actions": typeof mutations_actions;
+  "mutations/rooms": typeof mutations_rooms;
   "mutations/seed": typeof mutations_seed;
   "mutations/turns": typeof mutations_turns;
   "queries/galaxy": typeof queries_galaxy;

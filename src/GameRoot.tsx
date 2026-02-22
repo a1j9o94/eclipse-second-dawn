@@ -55,6 +55,7 @@ import { useAutoStepper } from './hooks/useAutoStepper'
 import usePreGameHandlers from './hooks/usePreGameHandlers'
 import type { RBProps, CombatProps } from './components/GameShell'
 import inferStartingLives from './utils/inferLives'
+import EclipseGamePage from './pages/EclipseGamePage'
 // Lives now integrated into ResourceBar; banner removed
 
 /**
@@ -463,6 +464,11 @@ export default function EclipseIntegrated(){
     onLeaveRoom: handleLeaveRoom,
   })
   if (preGame) return preGame
+
+  // Eclipse multiplayer game page
+  if (gameMode === 'multiplayer' && multiplayerPhase === 'game' && currentRoomId) {
+    return <EclipseGamePage roomId={currentRoomId} playerId={multi?.getPlayerId?.() || undefined} onLeaveGame={handleBackToMainMenu} />;
+  }
 
   return (
     <>

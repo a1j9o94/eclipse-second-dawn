@@ -13,3 +13,5 @@
 export { default as ExploreActionUI } from './ExploreActionUI';
 export { default as InfluenceActionUI } from './InfluenceActionUI';
 export { default as MoveActionUI } from './MoveActionUI';
+export { default as BuildActionUI } from './BuildActionUI';
+export { default as UpgradeActionUI } from './UpgradeActionUI';

@@ -1,4 +1,4 @@
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { MultiplayerGameConfig } from "../../shared/multiplayer";
@@ -64,15 +64,17 @@ export function useMultiplayerGame(roomId: Id<"rooms"> | null) {
     roomId ? { roomId } : "skip"
   );
 
-  // Mutations - These don't exist yet in the new Eclipse schema, stubbing as undefined
-  const createRoom: any = undefined;
-  const joinRoom: any = undefined;
-  const updatePlayerReady: any = undefined;
+  // Mutations - Room management
+  const createRoom = useMutation(api.mutations.rooms.createRoom);
+  const joinRoom = useMutation(api.mutations.rooms.joinRoom);
+  const updatePlayerReady = useMutation(api.mutations.rooms.updatePlayerReady);
+  const setPlayerFaction = useMutation(api.mutations.rooms.setPlayerFaction);
+  const startGame = useMutation(api.mutations.rooms.startGame);
+
+  // Mutations - Game actions (stubbed for now, to be implemented)
   const updatePlayerFleetValidity: any = undefined;
   const restartToSetup: any = undefined;
-  const startGame: any = undefined;
   const prepareRematch: any = undefined;
-  const setPlayerFaction: any = undefined;
   const updateGameState: any = undefined;
   const endCombatToSetup: any = undefined;
   const submitFleetSnapshot: any = undefined;
@@ -135,9 +137,18 @@ export function useMultiplayerGame(roomId: Id<"rooms"> | null) {
         isPublic,
         playerName,
         gameConfig,
-        playerFaction,
       });
       setPlayerId(result.playerId);
+
+      // If a faction was provided, set it immediately
+      if (playerFaction) {
+        await setPlayerFaction({
+          roomId: result.roomId,
+          playerId: result.playerId,
+          factionName: playerFaction,
+        });
+      }
+
       return result;
     } catch (error) {
       console.error("Failed to create room:", error);
@@ -176,8 +187,18 @@ export function useMultiplayerGame(roomId: Id<"rooms"> | null) {
       };
       const normalized = extractCode(roomCode);
       if (!normalized) throw new Error('Invalid room code');
-      const result = await joinRoom({ roomCode: normalized, playerName, playerFaction });
+      const result = await joinRoom({ roomCode: normalized, playerName });
       setPlayerId(result.playerId);
+
+      // If a faction was provided, set it immediately after joining
+      if (playerFaction && roomId) {
+        await setPlayerFaction({
+          roomId: result.roomId,
+          playerId: result.playerId,
+          factionName: playerFaction,
+        });
+      }
+
       return result;
     } catch (error) {
       console.error("Failed to join room:", error);
@@ -189,12 +210,13 @@ export function useMultiplayerGame(roomId: Id<"rooms"> | null) {
     if (!isConvexAvailable) {
       throw new Error("Multiplayer features are not available. Please check your connection and try again.");
     }
+    if (!roomId) throw new Error("No room ID");
     const playerId = getPlayerId();
     if (!playerId) throw new Error("No player ID found");
 
     try {
       console.debug("[Client] setReady", { playerId, isReady });
-      await updatePlayerReady({ playerId, isReady });
+      await updatePlayerReady({ roomId, playerId, isReady });
       console.debug("[Client] setReady ok", { playerId, isReady });
     } catch (error) {
       console.error("Failed to update ready status:", error);
@@ -254,12 +276,19 @@ export function useMultiplayerGame(roomId: Id<"rooms"> | null) {
       throw new Error("Multiplayer features are not available. Please check your connection and try again.");
     }
     if (!roomId) throw new Error("No room ID");
+    const playerId = getPlayerId();
+    if (!playerId) throw new Error("No player ID found");
     if (!isHost()) throw new Error("Only host can start game");
 
     try {
       console.debug("[Client] startGame", { roomId });
-      await startGame({ roomId });
-      await initializeGameState({ roomId, gameConfig: roomDetails!.room.gameConfig });
+      await startGame({ roomId, playerId });
+
+      // Initialize game state if the mutation exists
+      if (initializeGameState) {
+        await initializeGameState({ roomId, gameConfig: roomDetails!.room.gameConfig });
+      }
+
       console.debug("[Client] startGame ok");
     } catch (error) {
       console.error("Failed to start game:", error);
@@ -279,10 +308,11 @@ export function useMultiplayerGame(roomId: Id<"rooms"> | null) {
 
   const handleSetFaction = async (faction: string) => {
     if (!isConvexAvailable) return;
+    if (!roomId) return;
     const playerId = getPlayerId();
     if (!playerId) return;
     try {
-      await setPlayerFaction({ playerId, faction });
+      await setPlayerFaction({ roomId, playerId, factionName: faction });
     } catch (err) {
       console.error('Failed to set player faction:', err);
     }
