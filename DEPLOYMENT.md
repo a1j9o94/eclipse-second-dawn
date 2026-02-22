@@ -1,6 +1,6 @@
-# Eclipse Second Dawn - Deployment Status
+# Eclipse Second Dawn - Deployment Guide
 
-**Repository:** https://github.com/a1j9o94/eclipse-rougelike
+**Repository:** https://github.com/a1j9o94/eclipse-second-dawn
 **Current Status:** ✅ BUILD PASSING - Ready for deployment
 
 ---
@@ -10,12 +10,13 @@
 ### Convex Backend
 - **Production URL:** https://greedy-mongoose-499.convex.cloud
 - **Project ID:** ideal-nightingale-55
-- **Status:** Configured (requires login to deploy)
+- **Status:** ✅ Configured and ready
 
 ### Frontend
-- **Status:** Build passing, ready for hosting
-- **Build output:** `dist/` directory
-- **Hosting:** TBD (Vercel, Netlify, etc.)
+- **Status:** ✅ Build passing, Vercel config ready
+- **Build output:** `dist/` directory (372 KB gzipped)
+- **Hosting:** Vercel (one-click deployment ready)
+- **Live URL:** [Will be added after deployment]
 
 ---
 
@@ -65,46 +66,92 @@
 
 ---
 
-## Deployment Instructions
+## Quick Deploy (5 Minutes)
 
-### Deploy Convex Backend
+### Step 1: Create GitHub Repository
+1. Go to https://github.com/new
+2. Repository name: `eclipse-second-dawn`
+3. Description: "Eclipse Second Dawn for the Galaxy - Multiplayer board game"
+4. Public repository
+5. Do NOT initialize with README (we have one)
+6. Click "Create repository"
+
+### Step 2: Push Code
 ```bash
-cd /workspace/group/eclipse-full-game
-npx convex login  # Required first time
-npx convex deploy
+cd /workspace/group/eclipse-second-dawn
+git push -u origin main
 ```
 
-### Deploy Frontend (Vercel)
+### Step 3: Deploy to Vercel
+1. Go to https://vercel.com/new
+2. Import repository: `a1j9o94/eclipse-second-dawn`
+3. Framework: Vite (auto-detected)
+4. Click "Deploy"
+5. Wait 2-3 minutes for build to complete
+
+### Step 4: Seed Database
 ```bash
-# Option 1: Vercel CLI
-vercel --prod
-
-# Option 2: Git push (if connected to Vercel)
-git add .
-git commit -m "Deploy Eclipse Second Dawn"
-git push origin main
-
-# Option 3: Manual upload
-# Upload dist/ directory to hosting provider
+# After Vercel deployment succeeds
+npx convex deploy  # Deploy backend functions
+npx convex run mutations/seed:seedAllData  # Seed game data
 ```
 
-### Environment Variables
-No environment variables required - Convex URL is auto-configured from `convex.json`
+### Step 5: Test Your Deployment
+- Visit your Vercel URL (e.g., `eclipse-second-dawn.vercel.app`)
+- Check that galaxy board renders
+- Verify real-time Convex sync is working
 
 ---
 
-## Next Steps
+## Environment Configuration
 
-1. **Deploy Convex Backend:**
-   - Run `npx convex login` (requires Convex account credentials)
-   - Run `npx convex deploy`
-   - Seed database: `npx convex run mutations/seed:seedAllData`
+### Automatic Configuration
+- ✅ Convex URL: Auto-configured from `convex.json`
+- ✅ No environment variables needed
+- ✅ Build command: `npm run build` (auto-detected)
+- ✅ Output directory: `dist/` (auto-detected)
 
-2. **Deploy Frontend:**
-   - Connect repository to Vercel/Netlify
-   - Or upload `dist/` directory to hosting
+### Convex Backend
+Already configured and ready:
+```json
+{
+  "project": "ideal-nightingale-55",
+  "prodUrl": "https://greedy-mongoose-499.convex.cloud"
+}
+```
 
-3. **Test deployment:**
-   - Verify real-time sync
-   - Test action mutations
-   - Check multiplayer functionality
+---
+
+## Alternative Deployment Options
+
+### Option 1: Vercel CLI
+```bash
+npm i -g vercel
+vercel --prod
+```
+
+### Option 2: Netlify
+```bash
+npm i -g netlify-cli
+netlify deploy --prod
+```
+
+### Option 3: Custom Hosting
+```bash
+npm run build
+# Upload dist/ folder to your hosting provider
+```
+
+---
+
+## Post-Deployment Checklist
+
+- [ ] GitHub repository created and code pushed
+- [ ] Vercel deployment successful
+- [ ] Convex backend deployed (`npx convex deploy`)
+- [ ] Database seeded (`npx convex run mutations/seed:seedAllData`)
+- [ ] Live URL accessible
+- [ ] Galaxy board renders correctly
+- [ ] Real-time sync working
+- [ ] No console errors
+- [ ] Update README.md with live URL
