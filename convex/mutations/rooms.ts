@@ -318,9 +318,9 @@ export const startGame = mutation({
       // Get faction data for starting resources
       const faction = player.factionId ? await ctx.db.get(player.factionId) : null;
 
-      const startingMaterials = faction?.startingMaterials ?? 4;
-      const startingScience = faction?.startingScience ?? 2;
-      const startingMoney = faction?.startingMoney ?? 2;
+      const startingMaterials = faction?.startingMaterials ?? 5;
+      const startingScience = faction?.startingScience ?? 3;
+      const startingMoney = faction?.startingMoney ?? 15;
 
       await ctx.db.insert("playerResources", {
         roomId: args.roomId,
@@ -351,37 +351,37 @@ export const startGame = mutation({
     });
 
     // Create home sectors for each player at predefined positions
-    // Positions are based on ring 1 coordinates, evenly spaced
+    // Positions are based on ring 2 coordinates, evenly spaced
     const homeSectorPositions: Record<number, Array<{ q: number; r: number }>> = {
       2: [
-        { q: 0, r: -1 },  // North
-        { q: 0, r: 1 },   // South
+        { q: 0, r: -2 },  // North
+        { q: 0, r: 2 },   // South
       ],
       3: [
-        { q: 0, r: -1 },  // North
-        { q: 1, r: 0 },   // Southeast
-        { q: -1, r: 1 },  // Southwest
+        { q: 0, r: -2 },  // North
+        { q: 2, r: 0 },   // Southeast
+        { q: -2, r: 2 },  // Southwest
       ],
       4: [
-        { q: 0, r: -1 },  // North
-        { q: 1, r: 0 },   // East
-        { q: 0, r: 1 },   // South
-        { q: -1, r: 0 },  // West
+        { q: 0, r: -2 },  // North
+        { q: 2, r: 0 },   // East
+        { q: 0, r: 2 },   // South
+        { q: -2, r: 0 },  // West
       ],
       5: [
-        { q: 0, r: -1 },  // North
-        { q: 1, r: -1 },  // Northeast
-        { q: 1, r: 0 },   // Southeast
-        { q: 0, r: 1 },   // South
-        { q: -1, r: 0 },  // West
+        { q: 0, r: -2 },  // North
+        { q: 2, r: -1 },  // Northeast
+        { q: 2, r: 0 },   // Southeast
+        { q: 0, r: 2 },   // South
+        { q: -2, r: 0 },  // West
       ],
       6: [
-        { q: 0, r: -1 },  // North
-        { q: 1, r: -1 },  // Northeast
-        { q: 1, r: 0 },   // East
-        { q: 0, r: 1 },   // South
-        { q: -1, r: 1 },  // Southwest
-        { q: -1, r: 0 },  // West
+        { q: 0, r: -2 },  // North
+        { q: 2, r: -1 },  // Northeast
+        { q: 2, r: 0 },   // East
+        { q: 0, r: 2 },   // South
+        { q: -2, r: 2 },  // Southwest
+        { q: -2, r: 0 },  // West
       ],
     };
 
