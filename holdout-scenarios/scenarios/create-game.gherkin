@@ -1,0 +1,42 @@
+Scenario: Create new game room
+  Given Alice is on the multiplayer start page
+  When Alice clicks "Create Game"
+  And Alice selects 4 players
+  And Alice chooses "Terran Alliance" faction
+  Then a unique room code is generated
+  And Alice is designated as the host
+  And the lobby shows "1/4 players"
+  And Alice sees the room code displayed prominently
+
+Scenario: Join existing game room
+  Given Bob has a valid room code from Alice
+  When Bob enters the room code on the start page
+  And Bob clicks "Join Game"
+  Then Bob joins Alice's game room
+  And the lobby shows "2/4 players"
+  And both Alice and Bob see each other in the player list
+  And Bob can select a faction different from Alice's
+
+Scenario: Game starts when all players ready
+  Given a 4-player game room with 4 joined players
+  And all players have selected different factions
+  When all players mark themselves as ready
+  Then the game transitions from lobby to game board
+  And each player sees their home sector on the galaxy board
+  And the turn order is determined and displayed
+  And the first player's action phase begins
+
+Scenario: Prevent game start with incomplete lobby
+  Given a 4-player game room with only 2 joined players
+  When the host attempts to start the game
+  Then the game does not start
+  And an error message displays "Waiting for 2 more players"
+  And the lobby remains active
+
+Scenario: Host can kick players from lobby
+  Given Alice is the host of a 4-player game
+  And Bob has joined the lobby
+  When Alice clicks "Kick" next to Bob's name
+  Then Bob is removed from the lobby
+  And Bob sees a message "You were removed from the game"
+  And the lobby shows "1/4 players" again

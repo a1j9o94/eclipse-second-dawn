@@ -1,0 +1,19 @@
+#!/bin/bash
+echo "Running pre-push quality gates..."
+
+# Run build (critical - must pass)
+echo "Running build..."
+npm run build
+if [ $? -ne 0 ]; then
+  echo "❌ Build failed. Fix issues before pushing."
+  exit 1
+fi
+
+# Run lint (informational - warn but don't block)
+echo "Running lint..."
+npm run lint
+if [ $? -ne 0 ]; then
+  echo "⚠️  Lint issues detected. Consider fixing before merging."
+fi
+
+echo "✅ Pre-push checks passed."

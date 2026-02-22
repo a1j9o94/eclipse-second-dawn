@@ -1,393 +1,224 @@
-# Agents (Codex CLI) — Orchestrator & Sub-Agents
+# Eclipse: Second Dawn
 
-## Mission
+## Purpose
+Multiplayer board game implementation (like colonist.io for Catan) based on Eclipse: Second Dawn for the Galaxy. Players explore space, research technologies, upgrade ships, build economic engines, and engage in combat across hex-based galaxy boards.
 
-All “agents” are **Codex CLI** processes. A **Supervisor** coordinates **Planning**, **Engine/Implementation**, and **Tests** sub-agents. The Supervisor keeps CI green (tests/lint/build), spawns focused Codex jobs, and reaps completed work. Every run leaves an auditable trail under `coding_agents/`.
+## Architecture Overview
+- **Frontend:** React + TypeScript + Vite (src/)
+- **Backend:** Convex real-time database (convex/)
+- **Deployment:** Vercel (frontend) + Convex Cloud (backend)
+- **Real-time sync:** Convex subscriptions for live multiplayer state
+- **State management:** Server-authoritative—all game logic runs in Convex mutations
 
----
+## Key Patterns
 
-## Ground Rules
+### Server-Authoritative Design
+All game state mutations and validation happen server-side in Convex. Frontend is a view layer that dispatches actions and subscribes to state changes.
 
-* **TDD**: write a failing test → implement → make it pass. No untested behavior.
-* **Hygiene every loop**:
+**Why:** Prevents cheating, ensures consistency across players, simplifies conflict resolution.
 
-  ```bash
-  npm run lint && npm run build
-  ```
+**How:**
+- UI components call `useMutation` hooks
+- Mutations validate actions and update database
+- `useQuery` hooks subscribe to state changes
+- UI re-renders automatically on updates
 
-  Run the tests that are relevevant to yur update. You can't run all the tests because it will exceed the memory limit.
-* **Types**: no `any`/`unknown` on public boundaries. Define explicit interfaces for data crossing module boundaries.
-* **Player experience first**: every plan states the user outcome and acceptance criteria.
-* **Branches**: major work on `feature/<kebab>`, inherited from the parent branch.
-* **Write it down**: plans, decisions, status updates live in `coding_agents/`.
+See docs/patterns/server-authoritative.md for details.
 
----
+### Action System
+Six core player actions per turn: explore, influence, research, upgrade, build, move.
 
-## Directory Layout
+**Pattern:** Each action has:
+- UI component (src/components/actions/{Action}ActionUI.tsx)
+- Convex mutation (convex/mutations/{action}.ts)
+- Validation logic (convex/engine/validation.ts)
+- React hook (src/hooks/use{Action}.ts)
 
-```
-coding_agents/
-  agents.md
-  planning_agents.md
-  implementation_agents.md
-  research_agents.md
-  subagents/
-    planning_agent.md
-    engine_agent.md
-    tests_agent.md
-  prompts/
-    planning.md
-    engine.md
-    tests.md
-  logs/            # runtime logs (*.out)
-  pids/            # pidfiles (*.pid)
-  checklists/
-    app_slim_phase0b_status.md
-    app_slim_refactor_design.md
-```
+**Example:** ExploreActionUI.tsx → useExplore hook → convex/mutations/explore.ts → updates galaxy state
 
----
+See src/components/actions/ExploreActionUI.tsx as the canonical pattern.
 
-## Startup (every session)
+### Phase Management
+Game progresses through phases: action → combat → upkeep → income → cleanup → end turn.
 
+**Flow:**
+1. **Action phase:** Players take actions in turn order
+2. **Combat phase:** Resolve battles in sectors with multiple players
+3. **Upkeep phase:** Repair ships, discard excess resources
+4. **Income phase:** Collect resources from controlled sectors
+5. **Cleanup phase:** Reset temporary effects
+6. **End turn:** Advance round counter, check victory conditions
+
+See convex/engine/turns.ts for phase transition logic.
+
+## Directory Structure
+
+### Frontend (src/)
+- **/pages/** - Top-level page components
+  - `EclipseGamePage.tsx` - Main game interface
+  - `MultiplayerStartPage.tsx` - Lobby and game creation
+  - `LandingPage.tsx` - Entry point
+- **/components/** - Reusable UI components
+  - `/actions/` - Action-specific UIs (ExploreActionUI, ResearchActionUI, etc.)
+  - `/board/` - Galaxy board rendering
+  - `/lobby/` - Multiplayer lobby components
+  - `/player/` - Player dashboard, resource displays
+- **/hooks/** - React hooks for game state and actions
+  - `useGameState.ts` - Subscribe to game state
+  - `useGalaxy.ts` - Subscribe to galaxy/sectors
+  - `use{Action}.ts` - Action-specific hooks
+- **/types/** - Frontend TypeScript types
+- **/utils/** - Frontend utilities
+
+### Backend (convex/)
+- **/mutations/** - State-changing operations (create game, take action, advance phase)
+  - `rooms.ts` - Game room creation/joining
+  - `actions.ts` - Player actions (explore, influence, research, upgrade, build, move)
+  - `turns.ts` - Phase advancement and turn management
+  - `seed.ts` - Initial game setup
+- **/queries/** - Read-only queries
+  - `game.ts` - Game state queries
+  - `galaxy.ts` - Galaxy and sector queries
+  - `players.ts` - Player state queries
+  - `technologies.ts` - Available tech queries
+- **/engine/** - Core game logic (pure functions)
+  - `combat.ts` - Combat resolution (dice rolls, damage, initiative)
+  - `resources.ts` - Resource calculations
+  - `technology.ts` - Tech tree and prerequisites
+  - `turns.ts` - Turn and phase mechanics
+  - `validation.ts` - Action validation rules
+- **/helpers/** - Backend utilities
+- **/seedData/** - Initial data (factions, technologies, ship parts)
+- **schema.ts** - Convex database schema
+
+### Shared Data (shared/)
+- **/factions/** - Faction data (species, starting techs, abilities)
+- **/technologies/** - Technology tree data
+- **/parts/** - Ship component data
+- **/sectors/** - Sector tile data
+
+## External Dependencies
+
+### Convex
+Real-time database and serverless backend. All game state lives in Convex tables.
+
+**Key concepts:**
+- **Mutations:** Write operations (async functions that modify database)
+- **Queries:** Read operations (reactive, auto-update on changes)
+- **Schema:** Type-safe table definitions (schema.ts)
+- **Auth:** Built-in authentication (not yet implemented)
+
+See convex/ directory for all backend code.
+
+### Vercel
+Frontend deployment and hosting. Connected to main branch for auto-deploys.
+
+See DEPLOYMENT.md for deployment instructions.
+
+## Conventions
+
+### Naming
+- **Components:** PascalCase (GalaxyBoard.tsx)
+- **Hooks:** camelCase with "use" prefix (useGameState.ts)
+- **Mutations/Queries:** camelCase (createGame, getGalaxyState)
+- **Types:** PascalCase (GameState, PlayerAction)
+- **Constants:** UPPER_SNAKE_CASE (MAX_PLAYERS, STARTING_RESOURCES)
+
+### File Organization
+- One component per file
+- Co-locate tests with source files ({Component}.test.ts)
+- Group related components in subdirectories
+- Keep mutations focused (one action per file)
+
+### Error Handling
+- Mutations throw errors for invalid actions (Convex handles rollback)
+- Frontend hooks catch errors and display user-friendly messages
+- Log errors to console in development
+- Track errors in production (monitoring not yet implemented)
+
+### Testing
+- Unit tests for engine logic (convex/engine/)
+- Integration tests for mutations (test against Convex backend)
+- Component tests for UI (React Testing Library)
+- **IMPORTANT:** Cannot run all tests at once due to memory limits—run relevant tests only
+
+**Test commands:**
 ```bash
-git fetch -p
-git switch <working-branch>
-git pull --rebase
+npm run test:run          # Run all tests (may exceed memory)
+npm run test:watch        # Watch mode for development
+npm run test:coverage     # Generate coverage report
+```
 
+### TypeScript
+- No `any` or `unknown` on public boundaries
+- Define explicit interfaces for data crossing module boundaries
+- Use Convex validators for schema enforcement
+- Prefer type inference for local variables
+
+### Git Workflow
+- Feature branches: `feature/<kebab-case-name>`
+- Commit messages: imperative mood ("Add combat UI" not "Added combat UI")
+- Always run build before pushing: `npm run build && npm run lint`
+- Rebase before merging to keep history clean
+
+## Current Status
+- **Completed:** Core game loop, action system, galaxy exploration, technology research, ship upgrades, resource management
+- **In Progress:** Combat UI, player-to-player real-time updates, end-of-game scoring
+- **Blocked:** None
+- **Next:** Combat resolution UI, victory conditions, game polish
+
+See PROJECT_STATUS.md for detailed status.
+
+## Quick Start
+
+### Local Development
+```bash
+# Install dependencies
 npm ci
-npm run lint
-npm run test:run
+
+# Run Convex backend (in one terminal)
+npx convex dev
+
+# Run frontend (in another terminal)
+npm run dev
+
+# Open browser to http://localhost:5173
+```
+
+### Build and Deploy
+```bash
+# Build frontend
 npm run build
+
+# Deploy to Vercel (auto on push to main)
+vercel --prod
+
+# Deploy Convex backend
+npx convex deploy
 ```
 
-Create/append a plan entry in `coding_agents/subagents/planning_agent.md`:
-
-* **Outcome** (1 sentence)
-* **Acceptance criteria**
-* **Risks & rollback**
-* **Test list** (mark which must fail first)
-
----
-
-## Execution Policy (Codex flags)
-
-All sub-agents are Codex processes launched with full tool access + web:
-
-```
---dangerously-bypass-approvals-and-sandbox --search
-```
-
-These are injected automatically by `scripts/agents.sh` via the `CODEX_FLAGS` env var. Default:
-
-```bash
-export CODEX_FLAGS="--dangerously-bypass-approvals-and-sandbox --search -C . -p default"
-```
-
-Override per session if needed (e.g., safer mode):
-
-```bash
-export CODEX_FLAGS="--full-auto -C . -p default"
-```
-
----
-
-## Running Agents = Running Codex
-
-We use two Codex modes:
-
-1. **Non-interactive jobs (default)** — `codex exec "<prompt text>"`
-2. **Streaming/loop jobs** — `codex proto` (stdin/stdout protocol) for long-lived supervisors
-
-The process manager (`agents` alias for `bash scripts/agents.sh`) **detaches** each Codex run (`setsid` + `nohup`), captures logs, and writes a PID file.
-
----
-
-## Sub-Agent Roles
-
-### Planning Agent (Codex)
-
-**Goal**: produce/refresh the plan (`coding_agents/*_design.md`), acceptance criteria, and a failing-tests list.
-**Launch**:
-
-```bash
-agents spawn planning "plan-$RANDOM" -- \
-  codex exec "$(cat coding_agents/prompts/planning.md)"
-```
-
-**Outputs**:
-
-* `coding_agents/<feature>_design.md`
-* updated `checklists/*` and `subagents/planning_agent.md`
-
----
-
-### Engine/Implementation Agent (Codex)
-
-**Goal**: implement the next slice per plan; pure reducers/engine only; effects are declarative.
-**Launch**:
-
-```bash
-agents spawn engine "engine-$RANDOM" -- \
-  codex exec "$(cat coding_agents/prompts/engine.md)"
-```
-
-**Outputs**:
-
-* code + types; summary appended to `subagents/engine_agent.md`
-
----
-
-### Tests Agent (Codex)
-
-**Goal**: write failing tests first, then drive green; maintain coverage and regression harnesses.
-**Launch**:
-
-```bash
-agents spawn tests "tests-$RANDOM" -- \
-  codex exec "$(cat coding_agents/prompts/tests.md)"
-```
-
-**Outputs**:
-
-* new/updated tests; status appended to `subagents/tests_agent.md`
-
----
-
-## Supervisor / Orchestrator
-
-### Headless orchestrator (bash loop)
-
-`orchestrator.sh` runs the **gate → spawn → reap** loop:
-
-1. Pre-flight gate: `lint`, `test`, `build`
-2. Spawn Planning, Tests, and Engine agents (non-blocking)
-3. Loop:
-
-   * `agents reap` finished PIDs
-   * `agents status`
-   * soft health check: `npm run test:run || true`
-   * exit when `running-count == 0`
-4. Final gate: `lint`, `test`, `build`
-
-Run headless:
-
-```bash
-nohup bash orchestrator.sh > coding_agents/logs/orchestrator.out 2>&1 < /dev/null &
-echo $! > coding_agents/pids/orchestrator.pid
-```
-
-### Optional: streaming Supervisor (`codex proto`)
-
-For a single long-lived Codex controller that issues multiple steps without re-invocation:
-
-```bash
-agents spawn supervisor "supervisor-$(date +%H%M%S)" -- \
-  codex proto
-```
-
-A tiny driver can send protocol messages to stdin and read results from stdout (kept detached by the launcher).
-
----
-
-## Process Manager Commands
-
-(Provided by `scripts/agents.sh`; alias `agents="bash scripts/agents.sh"`)
-
-```bash
-# Spawn agents (Codex flags injected automatically)
-agents spawn planning my-plan -- codex exec "$(cat coding_agents/prompts/planning.md)"
-agents spawn engine   my-engine -- codex exec "$(cat coding_agents/prompts/engine.md)"
-agents spawn tests    my-tests -- codex exec "$(cat coding_agents/prompts/tests.md)"
-
-# Observe / control
-agents status                    # list all with PIDs and log paths
-agents tail my-tests             # tail a specific agent log
-agents reap                      # remove stale pidfiles for exited agents
-agents stop my-engine            # graceful stop (TERM, then KILL after timeout)
-agents running-count             # number of live agents
-```
-
-**Detachment model**: `setsid` + `nohup` + `</dev/null` ensures agents outlive the launching shell and don’t block the main thread.
-
----
-
-## Logging & Artifacts
-
-* Runtime logs: `coding_agents/logs/<agent>.out`
-* Reap events: `coding_agents/logs/_reap.log`
-* PIDs: `coding_agents/pids/<agent>.pid`
-* Plans/designs: `coding_agents/*.md`, `coding_agents/subagents/*.md`
-
-Each agent appends a short **“Result & Next Steps”** section to its log before exit.
-
----
-
-## Signals & Shutdown Policy
-
-* **Graceful**: `TERM` (agents should trap, finish current step, then exit)
-* **Hard**: `KILL` (only after 10s grace)
-* Orchestrator exit always runs the final health gate:
-
-  ```bash
-  npm run lint && npm run test:run && npm run build
-  ```
-
----
-
-## Concurrency Guard
-
-Default max concurrent sub-agents: **3**. Supervisors should check `agents running-count` and delay spawns if over budget to avoid local CPU thrash.
-
----
-
-## Systemd (optional)
-
-Run the orchestrator as a user service that restarts on crash.
-
-`~/.config/systemd/user/coding-orchestrator.service`
-
-```ini
-[Unit]
-Description=Coding Orchestrator (Codex)
-After=default.target
-
-[Service]
-WorkingDirectory=%h/<your-repo>
-ExecStart=/usr/bin/bash orchestrator.sh
-Restart=always
-RestartSec=5
-StandardInput=null
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=default.target
-```
-
-Enable:
-
-```bash
-systemctl --user daemon-reload
-systemctl --user enable --now coding-orchestrator
-journalctl --user -u coding-orchestrator -f
-```
-
----
-
-## Prompt Stubs (placeholders)
-
-`coding_agents/prompts/planning.md`
-
-```
-You are the Planning Agent for the Eclipse roguelike repo.
-
-Goal: produce/refresh the plan for "App Slim Refactor — Phase 0b":
-- User-visible outcomes and acceptance criteria
-- Failing test list to drive implementation
-- Update coding_agents/checklists/app_slim_phase0b_status.md
-
-Constraints:
-- Keep lint/build green; failing tests allowed only if clearly intentional and documented.
-
-Deliverables:
-- Update coding_agents/app_slim_refactor_design.md (today’s scope)
-- Append a “Decision Log” with any interface/type changes
-```
-
-`coding_agents/prompts/engine.md`
-
-```
-You are the Engine Implementation Agent.
-
-Task:
-- Implement the next slice of Phase 0b per the design doc.
-- Pure reducers/engine only; emit declarative effects.
-- Update src/game/state.ts and commands.ts types as needed.
-
-Tests first:
-- Add/modify tests listed by Planning Agent; make them fail.
-Then implement until green.
-
-Output:
-- Short summary appended to coding_agents/subagents/engine_agent.md:
-  - Files touched
-  - Types added/changed
-  - Effects emitted
-```
-
-`coding_agents/prompts/tests.md`
-
-```
-You are the Tests Agent.
-
-Task:
-- Create failing tests that encode the acceptance criteria.
-- Drive them to green.
-- Prefer unit tests for selectors/engine; snapshot tests for labels/guards.
-
-Report:
-- Write a brief status to coding_agents/subagents/tests_agent.md:
-  - New tests
-  - Failures fixed
-  - Remaining gaps
-```
-
----
-
-## Acceptance Gates
-
-* Acceptance criteria satisfied.
-* `npm run lint && npm run test:run && npm run build` all green.
-* Docs updated in `coding_agents/`:
-
-  * Plan includes **Decision Log** and **Follow-ups**
-  * Checklists/status reflect current state
-
----
-
-## Quick Cheatsheet
-
-```bash
-# One-time setup
-echo 'alias agents="bash scripts/agents.sh"' >> ~/.bashrc
-export CODEX_FLAGS="--dangerously-bypass-approvals-and-sandbox --search -C . -p default"
-
-# Start orchestrator headless
-nohup bash orchestrator.sh > coding_agents/logs/orchestrator.out 2>&1 < /dev/null &
-echo $! > coding_agents/pids/orchestrator.pid
-
-# Day-to-day
-agents status
-agents tail planning-12345
-agents reap
-agents stop engine-12345
-```
-
-**Result:** a non-blocking, headless Codex setup where the Supervisor orchestrates sub-agents, every process is detached with PID/log bookkeeping, and quality gates stay enforced.
-
-## Landing the Plane (Session Completion)
-
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
-
-**MANDATORY WORKFLOW:**
-
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   bd sync
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
-
-**CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
+See DEPLOYMENT.md for full deployment guide.
+
+## Debugging
+
+### Common Issues
+- **"No game found":** Game not properly initialized—check seed mutation
+- **"Invalid action":** Action validation failed—check convex/engine/validation.ts
+- **"Build fails":** Type errors—run `npm run build` to see full errors
+- **"Tests exceed memory":** Run specific test files, not full suite
+
+### Development Tools
+- **React DevTools:** Inspect component state and props
+- **Convex Dashboard:** View database tables and logs (dashboard.convex.dev)
+- **Browser Console:** Frontend errors and network requests
+- **VS Code Debugger:** Set breakpoints in frontend code
+
+## Progressive Disclosure
+This AGENTS.md provides a high-level overview. For deeper details:
+- **Architecture patterns:** docs/patterns/
+- **API documentation:** docs/api/
+- **Game rules:** docs/rules/
+- **Deployment guides:** DEPLOYMENT.md, QUICK_DEPLOY.md
+- **Project status:** PROJECT_STATUS.md
+
+When working on a specific area, reference the detailed docs for that subsystem.
