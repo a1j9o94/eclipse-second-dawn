@@ -1,36 +1,14 @@
-// @ts-nocheck
 // Action mutations for Eclipse board game
 // Handles all 6 player actions: Explore, Influence, Research, Upgrade, Build, Move
 
-import { mutation } from "../_generated/server";
+import { mutation, type MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
-import {
-  validateAction,
-  executeAction,
-  type ActionType,
-} from "../engine/turns";
-import {
-  executeExplore,
-  executeInfluence,
-  executeResearch,
-  executeUpgrade,
-  executeBuild,
-  executeMove,
-  validateGameAction,
-  type ExploreAction,
-  type InfluenceAction,
-  type ResearchAction,
-  type UpgradeAction,
-  type BuildAction,
-  type MoveAction,
-} from "../engine/actions";
 import { logInfo, roomTag } from "../helpers/log";
 import {
   canAfford,
   spendResources,
-  useInfluenceForAction,
-  useInfluenceForSector,
-  type PlayerEconomy,
+  placeInfluenceOnAction,
+  placeInfluenceOnSector,
   type Cost,
 } from "../engine/resources";
 import {
@@ -46,13 +24,14 @@ import {
  * Helper to validate player's turn
  */
 async function validatePlayerTurn(
-  ctx: any,
+  ctx: MutationCtx,
   roomId: string,
   playerId: string
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<{ valid: boolean; reason?: string; gameState?: any; resources?: any }> {
   const gameState = await ctx.db
     .query("gameState")
-    .withIndex("by_room", (q: any) => q.eq("roomId", roomId))
+    .withIndex("by_room", (q) => q.eq("roomId", roomId as any))
     .first();
 
   if (!gameState) {
@@ -69,8 +48,8 @@ async function validatePlayerTurn(
 
   const resources = await ctx.db
     .query("playerResources")
-    .withIndex("by_room_player", (q: any) =>
-      q.eq("roomId", roomId).eq("playerId", playerId)
+    .withIndex("by_room_player", (q) =>
+      q.eq("roomId", roomId as any).eq("playerId", playerId)
     )
     .first();
 
@@ -82,18 +61,21 @@ async function validatePlayerTurn(
     return { valid: false, reason: "Player has already passed" };
   }
 
-  return { valid: true, gameState, resources };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return { valid: true, gameState, resources } as any;
 }
 
 /**
  * Helper to advance turn to next player
  */
-async function advanceTurn(ctx: any, roomId: string, gameState: any) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function advanceTurn(ctx: MutationCtx, roomId: string, gameState: any) {
   const players = await ctx.db
     .query("players")
-    .withIndex("by_room", (q: any) => q.eq("roomId", roomId))
+    .withIndex("by_room", (q) => q.eq("roomId", roomId as any))
     .collect();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sortedPlayers = players.sort((a: any, b: any) => {
     if (a.turnOrder !== undefined && b.turnOrder !== undefined) {
       return a.turnOrder - b.turnOrder;
@@ -101,6 +83,7 @@ async function advanceTurn(ctx: any, roomId: string, gameState: any) {
     return a.joinedAt - b.joinedAt;
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const playerIds = sortedPlayers.map((p: any) => p.playerId);
   const currentIndex = playerIds.indexOf(gameState.activePlayerId || playerIds[0]);
   const passedPlayers = gameState.passedPlayers || [];
@@ -160,6 +143,7 @@ export const explore = mutation({
       if (faction) {
         factionData = {
           maxInfluenceDisks: faction.maxInfluenceDisks,
+          maxColonyShips: faction.maxColonyShips,
           tradeRatio: faction.tradeRatio,
         };
       }
@@ -186,8 +170,8 @@ export const explore = mutation({
       throw new Error("No influence disks available");
     }
 
-    // Use influence for action (placing on sector happens via useInfluenceForSector)
-    let updatedEconomy = useInfluenceForAction(economy);
+    // Use influence for action (placing on sector happens via placeInfluenceOnSector)
+    let updatedEconomy = placeInfluenceOnAction(economy);
 
     // Check if sector already exists at this position
     const existingSector = await ctx.db
@@ -233,7 +217,7 @@ export const explore = mutation({
     });
 
     // Use another influence disk for sector control
-    updatedEconomy = useInfluenceForSector(updatedEconomy);
+    updatedEconomy = placeInfluenceOnSector(updatedEconomy);
 
     // Update database with new economy state
     await ctx.db.patch(resources._id, playerEconomyToDbUpdates(updatedEconomy));
@@ -303,15 +287,14 @@ export const influence = mutation({
       .first();
 
     let factionData: FactionEconomyData = DEFAULT_FACTION_ECONOMY;
-    let maxColonyShips = 4;
     if (player?.factionId) {
       const faction = await ctx.db.get(player.factionId);
       if (faction) {
         factionData = {
           maxInfluenceDisks: faction.maxInfluenceDisks,
+          maxColonyShips: faction.maxColonyShips,
           tradeRatio: faction.tradeRatio,
         };
-        maxColonyShips = faction.maxColonyShips;
       }
     }
 
@@ -337,7 +320,7 @@ export const influence = mutation({
     }
 
     // Use influence for this action
-    let updatedEconomy = useInfluenceForAction(economy);
+    const updatedEconomy = placeInfluenceOnAction(economy);
 
     // Retrieve influence disks from sectors (up to 2)
     const retrieveFrom = args.retrieveFrom || [];
@@ -492,6 +475,7 @@ export const research = mutation({
       if (faction) {
         factionData = {
           maxInfluenceDisks: faction.maxInfluenceDisks,
+          maxColonyShips: faction.maxColonyShips,
           tradeRatio: faction.tradeRatio,
         };
       }
@@ -525,7 +509,7 @@ export const research = mutation({
 
     // Execute research action with Resources engine
     let updatedEconomy = spendResources(economy, cost);
-    updatedEconomy = useInfluenceForAction(updatedEconomy);
+    updatedEconomy = placeInfluenceOnAction(updatedEconomy);
 
     // Update database with new economy state
     await ctx.db.patch(resources._id, {
@@ -626,6 +610,7 @@ export const build = mutation({
       if (faction) {
         factionData = {
           maxInfluenceDisks: faction.maxInfluenceDisks,
+          maxColonyShips: faction.maxColonyShips,
           tradeRatio: faction.tradeRatio,
         };
       }
@@ -663,7 +648,7 @@ export const build = mutation({
 
     // Execute build action with Resources engine
     let updatedEconomy = spendResources(economy, cost);
-    updatedEconomy = useInfluenceForAction(updatedEconomy);
+    updatedEconomy = placeInfluenceOnAction(updatedEconomy);
 
     // Update database with new economy state
     await ctx.db.patch(resources._id, playerEconomyToDbUpdates(updatedEconomy));
@@ -762,6 +747,7 @@ export const upgrade = mutation({
       if (faction) {
         factionData = {
           maxInfluenceDisks: faction.maxInfluenceDisks,
+          maxColonyShips: faction.maxColonyShips,
           tradeRatio: faction.tradeRatio,
         };
       }
@@ -798,7 +784,7 @@ export const upgrade = mutation({
 
     // Execute upgrade action with Resources engine
     let updatedEconomy = spendResources(economy, cost);
-    updatedEconomy = useInfluenceForAction(updatedEconomy);
+    updatedEconomy = placeInfluenceOnAction(updatedEconomy);
 
     // Update database with new economy state
     // TODO: Actually update blueprint parts
@@ -902,6 +888,7 @@ export const move = mutation({
       if (faction) {
         factionData = {
           maxInfluenceDisks: faction.maxInfluenceDisks,
+          maxColonyShips: faction.maxColonyShips,
           tradeRatio: faction.tradeRatio,
         };
       }
@@ -932,7 +919,7 @@ export const move = mutation({
     // For now, allow any move
 
     // Use influence for this action
-    const updatedEconomy = useInfluenceForAction(economy);
+    const updatedEconomy = placeInfluenceOnAction(economy);
 
     // Update ship location
     await ctx.db.patch(ship._id, {

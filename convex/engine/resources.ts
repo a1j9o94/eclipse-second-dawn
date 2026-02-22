@@ -320,7 +320,7 @@ export function getUpkeepCost(disksOnTrack: number): number {
  * Move influence disk from track to action space
  * Used when taking an action
  */
-export function useInfluenceForAction(economy: PlayerEconomy): PlayerEconomy {
+export function placeInfluenceOnAction(economy: PlayerEconomy): PlayerEconomy {
   if (economy.influence.onTrack <= 0) {
     throw new Error('No influence disks available on track');
   }
@@ -342,7 +342,7 @@ export function useInfluenceForAction(economy: PlayerEconomy): PlayerEconomy {
 /**
  * Move influence disk from track to sector (control)
  */
-export function useInfluenceForSector(economy: PlayerEconomy): PlayerEconomy {
+export function placeInfluenceOnSector(economy: PlayerEconomy): PlayerEconomy {
   if (economy.influence.onTrack <= 0) {
     throw new Error('No influence disks available on track');
   }

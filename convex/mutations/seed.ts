@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Eclipse: Second Dawn - Database Seeding Mutations
  *
@@ -28,19 +27,19 @@ import {
  * Seed all factions (one-time, global)
  * Call this once when setting up the database.
  */
-export const seedFactions = mutation({
-  handler: async (ctx) => {
-    // Check if factions already exist
-    const existingFactions = await ctx.db.query("factions").collect();
-    if (existingFactions.length > 0) {
-      console.log("Factions already seeded, skipping...");
-      return { success: true, message: "Factions already exist", count: existingFactions.length };
-    }
+// Helper function for seeding factions
+async function seedFactionsImpl(ctx: any) {
+  // Check if factions already exist
+  const existingFactions = await ctx.db.query("factions").collect();
+  if (existingFactions.length > 0) {
+    console.log("Factions already seeded, skipping...");
+    return { success: true, message: "Factions already exist", count: existingFactions.length };
+  }
 
-    const factionIds: Record<string, string> = {};
+  const factionIds: Record<string, string> = {};
 
-    for (const faction of factions) {
-      const id = await ctx.db.insert("factions", {
+  for (const faction of factions) {
+    const id = await ctx.db.insert("factions", {
         name: faction.name,
         description: faction.description,
 
@@ -68,41 +67,45 @@ export const seedFactions = mutation({
       factionIds[faction.name] = id;
     }
 
-    console.log(`✅ Seeded ${factions.length} factions`);
-    return { success: true, count: factions.length, factionIds };
-  },
+  console.log(`✅ Seeded ${factions.length} factions`);
+  return { success: true, count: factions.length, factionIds };
+}
+
+export const seedFactions = mutation({
+  handler: async (ctx) => seedFactionsImpl(ctx),
 });
 
 /**
  * Seed all dice types (one-time, global)
  */
+async function seedDiceImpl(ctx: any) {
+  const existingDice = await ctx.db.query("dice").collect();
+  if (existingDice.length > 0) {
+    console.log("Dice already seeded, skipping...");
+    return { success: true, message: "Dice already exist", count: existingDice.length };
+  }
+
+  for (const die of dice) {
+    await ctx.db.insert("dice", {
+      type: die.type,
+      sides: die.sides,
+    });
+  }
+
+  console.log(`✅ Seeded ${dice.length} dice types`);
+  return { success: true, count: dice.length };
+}
+
 export const seedDice = mutation({
-  handler: async (ctx) => {
-    const existingDice = await ctx.db.query("dice").collect();
-    if (existingDice.length > 0) {
-      console.log("Dice already seeded, skipping...");
-      return { success: true, message: "Dice already exist", count: existingDice.length };
-    }
-
-    for (const die of dice) {
-      await ctx.db.insert("dice", {
-        type: die.type,
-        sides: die.sides,
-      });
-    }
-
-    console.log(`✅ Seeded ${dice.length} dice types`);
-    return { success: true, count: dice.length };
-  },
+  handler: async (ctx) => seedDiceImpl(ctx),
 });
 
 /**
  * Seed all ship parts (one-time, global)
  * Parts reference technologies, so seed technologies first.
  */
-export const seedParts = mutation({
-  handler: async (ctx) => {
-    const existingParts = await ctx.db.query("parts").collect();
+async function seedPartsImpl(ctx: any) {
+  const existingParts = await ctx.db.query("parts").collect();
     if (existingParts.length > 0) {
       console.log("Parts already seeded, skipping...");
       return { success: true, message: "Parts already exist", count: existingParts.length };
@@ -110,13 +113,13 @@ export const seedParts = mutation({
 
     // Get all technologies to resolve references
     const allTechs = await ctx.db.query("technologies").collect();
-    const techByName = new Map(allTechs.map((t) => [t.name, t._id]));
+    const techByName = new Map(allTechs.map((t: any) => [t.name, t._id]));
 
     for (const part of parts) {
       // Resolve technology requirements
       const requiresTechnologyIds = part.requiresTechnologies
         .map((techName) => techByName.get(techName))
-        .filter((id): id is string => id !== undefined);
+        .filter((id) => id !== undefined) as any[];
 
       await ctx.db.insert("parts", {
         name: part.name,
@@ -142,18 +145,20 @@ export const seedParts = mutation({
       });
     }
 
-    console.log(`✅ Seeded ${parts.length} ship parts`);
-    return { success: true, count: parts.length };
-  },
+  console.log(`✅ Seeded ${parts.length} ship parts`);
+  return { success: true, count: parts.length };
+}
+
+export const seedParts = mutation({
+  handler: async (ctx) => seedPartsImpl(ctx),
 });
 
 /**
  * Seed all technologies (one-time, global)
  * Note: Technologies reference parts via unlocksParts, which are resolved later.
  */
-export const seedTechnologies = mutation({
-  handler: async (ctx) => {
-    const existingTechs = await ctx.db.query("technologies").collect();
+async function seedTechnologiesImpl(ctx: any) {
+  const existingTechs = await ctx.db.query("technologies").collect();
     if (existingTechs.length > 0) {
       console.log("Technologies already seeded, skipping...");
       return { success: true, message: "Technologies already exist", count: existingTechs.length };
@@ -179,19 +184,21 @@ export const seedTechnologies = mutation({
       });
     }
 
-    console.log(`✅ Seeded ${technologies.length} technologies`);
-    return { success: true, count: technologies.length };
-  },
+  console.log(`✅ Seeded ${technologies.length} technologies`);
+  return { success: true, count: technologies.length };
+}
+
+export const seedTechnologies = mutation({
+  handler: async (ctx) => seedTechnologiesImpl(ctx),
 });
 
 /**
  * Update technology->part references after both are seeded
  */
-export const linkTechnologiesToParts = mutation({
-  handler: async (ctx) => {
-    const allTechs = await ctx.db.query("technologies").collect();
+async function linkTechnologiesToPartsImpl(ctx: any) {
+  const allTechs = await ctx.db.query("technologies").collect();
     const allParts = await ctx.db.query("parts").collect();
-    const partByName = new Map(allParts.map((p) => [p.name, p._id]));
+    const partByName = new Map(allParts.map((p: any) => [p.name, p._id]));
 
     let updated = 0;
 
@@ -203,17 +210,20 @@ export const linkTechnologiesToParts = mutation({
       // Resolve part IDs
       const unlocksPartIds = seedTech.unlocksParts
         .map((partName) => partByName.get(partName))
-        .filter((id): id is string => id !== undefined);
+        .filter((id) => id !== undefined) as any[];
 
       if (unlocksPartIds.length > 0) {
-        await ctx.db.patch(tech._id, { unlocksParts: unlocksPartIds });
+        await ctx.db.patch(tech._id, { unlocksParts: unlocksPartIds as any });
         updated++;
       }
     }
 
-    console.log(`✅ Linked ${updated} technologies to their parts`);
-    return { success: true, updated };
-  },
+  console.log(`✅ Linked ${updated} technologies to their parts`);
+  return { success: true, updated };
+}
+
+export const linkTechnologiesToParts = mutation({
+  handler: async (ctx) => linkTechnologiesToPartsImpl(ctx),
 });
 
 // ============================================================================
@@ -223,18 +233,14 @@ export const linkTechnologiesToParts = mutation({
 /**
  * Seed discovery tiles for a specific game
  */
-export const seedDiscoveryTiles = mutation({
-  args: {
-    roomId: v.optional(v.id("rooms")), // Optional - can seed globally or per-room
-  },
-  handler: async (ctx, args) => {
-    const tileIds = [];
+async function seedDiscoveryTilesImpl(ctx: any, _args: any) {
+  const tileIds = [];
 
     for (const tile of discoveryTiles) {
       // Create 'count' instances of each tile type
       for (let i = 0; i < tile.count; i++) {
         const id = await ctx.db.insert("discoveryTiles", {
-          type: tile.type,
+          type: tile.type as any,
 
           // Immediate effects
           moneyBonus: tile.moneyBonus,
@@ -254,17 +260,22 @@ export const seedDiscoveryTiles = mutation({
       }
     }
 
-    console.log(`✅ Seeded ${tileIds.length} discovery tiles`);
-    return { success: true, count: tileIds.length, tileIds };
+  console.log(`✅ Seeded ${tileIds.length} discovery tiles`);
+  return { success: true, count: tileIds.length, tileIds };
+}
+
+export const seedDiscoveryTiles = mutation({
+  args: {
+    roomId: v.optional(v.id("rooms")), // Optional - can seed globally or per-room
   },
+  handler: async (ctx, args) => seedDiscoveryTilesImpl(ctx, args),
 });
 
 /**
  * Seed reputation tiles (global pool)
  */
-export const seedReputationTiles = mutation({
-  handler: async (ctx) => {
-    const existingTiles = await ctx.db.query("reputationTiles").collect();
+async function seedReputationTilesImpl(ctx: any) {
+  const existingTiles = await ctx.db.query("reputationTiles").collect();
     if (existingTiles.length > 0) {
       console.log("Reputation tiles already seeded, skipping...");
       return { success: true, message: "Reputation tiles already exist", count: existingTiles.length };
@@ -277,17 +288,19 @@ export const seedReputationTiles = mutation({
       });
     }
 
-    console.log(`✅ Seeded ${reputationTiles.length} reputation tile types`);
-    return { success: true, count: reputationTiles.length };
-  },
+  console.log(`✅ Seeded ${reputationTiles.length} reputation tile types`);
+  return { success: true, count: reputationTiles.length };
+}
+
+export const seedReputationTiles = mutation({
+  handler: async (ctx) => seedReputationTilesImpl(ctx),
 });
 
 /**
  * Seed ambassadors (global pool)
  */
-export const seedAmbassadors = mutation({
-  handler: async (ctx) => {
-    const existingAmbassadors = await ctx.db.query("ambassadors").collect();
+async function seedAmbassadorsImpl(ctx: any) {
+  const existingAmbassadors = await ctx.db.query("ambassadors").collect();
     if (existingAmbassadors.length > 0) {
       console.log("Ambassadors already seeded, skipping...");
       return { success: true, message: "Ambassadors already exist", count: existingAmbassadors.length };
@@ -302,9 +315,12 @@ export const seedAmbassadors = mutation({
       });
     }
 
-    console.log(`✅ Seeded ${ambassadors.length} ambassador types`);
-    return { success: true, count: ambassadors.length };
-  },
+  console.log(`✅ Seeded ${ambassadors.length} ambassador types`);
+  return { success: true, count: ambassadors.length };
+}
+
+export const seedAmbassadors = mutation({
+  handler: async (ctx) => seedAmbassadorsImpl(ctx),
 });
 
 // ============================================================================
@@ -320,16 +336,16 @@ export const initializeGlobalGameData = mutation({
     console.log("🚀 Initializing Eclipse: Second Dawn global game data...");
 
     const results = {
-      factions: await seedFactions.handler(ctx),
-      dice: await seedDice.handler(ctx),
-      technologies: await seedTechnologies.handler(ctx),
-      parts: await seedParts.handler(ctx),
-      reputationTiles: await seedReputationTiles.handler(ctx),
-      ambassadors: await seedAmbassadors.handler(ctx),
+      factions: await seedFactionsImpl(ctx),
+      dice: await seedDiceImpl(ctx),
+      technologies: await seedTechnologiesImpl(ctx),
+      parts: await seedPartsImpl(ctx),
+      reputationTiles: await seedReputationTilesImpl(ctx),
+      ambassadors: await seedAmbassadorsImpl(ctx),
     };
 
     // Link technologies to parts after both are created
-    const linkResult = await linkTechnologiesToParts.handler(ctx);
+    const linkResult = await linkTechnologiesToPartsImpl(ctx);
 
     console.log("✅ Global game data initialized!");
     console.log(`  - Factions: ${results.factions.count}`);
@@ -360,7 +376,7 @@ export const initializeGameRoom = mutation({
     console.log(`🎮 Initializing game room: ${args.roomId}`);
 
     // Seed discovery tiles for this room
-    const discoveryResult = await seedDiscoveryTiles.handler(ctx, { roomId: args.roomId });
+    const discoveryResult = await seedDiscoveryTilesImpl(ctx, { roomId: args.roomId });
 
     console.log(`✅ Game room ${args.roomId} initialized!`);
     console.log(`  - Discovery Tiles: ${discoveryResult.count}`);

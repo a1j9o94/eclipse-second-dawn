@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Eclipse Second Dawn - Player Board Component
  *
@@ -9,7 +8,6 @@
  * - Visual representation matching board game aesthetics
  */
 
-import React from 'react';
 import type { PlayerEconomy, ResourceType } from '../../convex/engine/resources';
 
 // ============================================================================

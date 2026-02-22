@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useState } from "react";
 import { type Resources, type Research } from '../shared/defaults'
 // PlayerState imported where needed in selectors/hooks
@@ -172,7 +171,7 @@ export default function EclipseIntegrated(){
   // ---------- Outpost controller ----------
   const { outpost } = useOutpostController({
     gameMode,
-    multi,
+    multi: multi as any,
     state: {
       resources: resources as Resources,
       research: research as Research,
@@ -286,7 +285,7 @@ export default function EclipseIntegrated(){
   // Multiplayer glue (phase nav + setup sync + seed submit)
   useMultiplayerGlue({
     gameMode,
-    multi,
+    multi: multi as any,
     testTick,
     baseRerollCost,
     rerollCost,
@@ -320,7 +319,7 @@ export default function EclipseIntegrated(){
   // MP: Show match-over modal when server marks game finished
   useEffect(() => {
     if (gameMode !== 'multiplayer') return
-    if (!multi?.gameState || multi.gameState.gamePhase !== 'finished') return
+    if (!multi?.gameState || multi.gameState.currentPhase !== 'finished') return
     if (matchOver) return
     try {
       const winnerId = (multi.gameState as unknown as { matchResult?: { winnerPlayerId?: string } })?.matchResult?.winnerPlayerId
@@ -331,7 +330,7 @@ export default function EclipseIntegrated(){
       setMatchOver({ winnerName: 'Winner' })
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameMode, multi?.gameState?.gamePhase])
+  }, [gameMode, multi?.gameState?.currentPhase])
 
   // Validity stream handled in Outpost VM; readiness submits snapshots explicitly
 
@@ -387,7 +386,7 @@ export default function EclipseIntegrated(){
     }
     resetRun()
   }
-  const rbVm = useResourceBarVm({ resources: resources as Resources, tonnage, sector, onReset: rbOnReset, gameMode, singleLives: livesRemaining, multi })
+  const rbVm = useResourceBarVm({ resources: resources as Resources, tonnage, sector, onReset: rbOnReset, gameMode, singleLives: livesRemaining, multi: multi as any })
 
   const handleMatchOverClose = useMatchOverClose({
     multi: (multi as { prepareRematch?: ()=>Promise<void> }) ?? null,
@@ -397,7 +396,7 @@ export default function EclipseIntegrated(){
   // MP: when server marks the match finished, show Win modal to the winner; others see Match Over
   useEffect(() => {
     if (gameMode !== 'multiplayer') return
-    if (!multi?.gameState || multi.gameState.gamePhase !== 'finished') return
+    if (!multi?.gameState || multi.gameState.currentPhase !== 'finished') return
     try {
       const winnerId = (multi.gameState as unknown as { matchResult?: { winnerPlayerId?: string } })?.matchResult?.winnerPlayerId
       const reason = (multi.gameState as unknown as { matchResult?: { reason?: string } })?.matchResult?.reason
@@ -418,7 +417,7 @@ export default function EclipseIntegrated(){
     } catch {
       setMatchOver({ winnerName: 'Winner' })
     }
-  }, [gameMode, multi?.gameState?.gamePhase])
+  }, [gameMode, multi?.gameState?.currentPhase])
 
   // Pre-game routing (start, MP menu/lobby)
   // Tutorial hook must be declared before any early returns to keep hook order stable

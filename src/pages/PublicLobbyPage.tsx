@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState } from 'react';
 import { usePublicRooms } from '../hooks/usePublicRooms';
 import { useMultiplayerGame } from '../hooks/useMultiplayerGame';
@@ -69,7 +68,7 @@ export default function PublicLobbyPage({ onBack, onRoomJoined, onCreatePublic, 
             <div className="p-4 text-zinc-400">No public rooms available right now.</div>
           ) : (
             <ul className="divide-y divide-zinc-700">
-              {rooms.map(r => (
+              {rooms.map((r: any) => (
                 <li key={r.roomId} className="p-4 flex items-center justify-between">
                   <div>
                     <div className="font-medium">{r.roomName} <span className="text-xs opacity-70">({r.currentPlayers}/{r.maxPlayers})</span></div>

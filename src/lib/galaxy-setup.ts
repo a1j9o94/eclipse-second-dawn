@@ -1,7 +1,6 @@
-// @ts-nocheck
 import type { EclipseSector } from '../types/eclipse-sectors';
 import { SECTOR_NUMBERS, STARTING_SECTORS_BY_PLAYER_COUNT, OUTER_STACK_SIZE } from '../types/eclipse-sectors';
-import { Hex } from 'react-hexgrid';
+import { Hex, GridGenerator } from 'react-hexgrid';
 
 /**
  * Galaxy setup utilities for Eclipse: Second Dawn
@@ -31,7 +30,7 @@ function generateRingCoordinates(ring: number): Array<{ q: number; r: number; s:
   }
 
   const centerHex = new Hex(0, 0, 0);
-  const hexes = require('react-hexgrid').GridGenerator.ring(centerHex, ring);
+  const hexes = GridGenerator.ring(centerHex, ring);
 
   return hexes.map((hex: Hex) => ({
     q: hex.q,
@@ -181,10 +180,7 @@ export function initializeGalaxy(config: GalaxyConfig): GalaxySetup {
  */
 export function getExpectedSectorCount(playerCount: number, useGuardians: boolean): number {
   // Center + Starting sectors + Guardians (optional)
-  let placed = 1 + playerCount + (useGuardians ? 4 : 0);
-
-  // Stacks (these are face-down, drawn during exploration)
-  const stackSize = OUTER_STACK_SIZE[playerCount];
+  const placed = 1 + playerCount + (useGuardians ? 4 : 0);
 
   // 2 players: Center + 2 starting + small stacks
   // 3-4 players: Center + 3-4 starting + medium stacks

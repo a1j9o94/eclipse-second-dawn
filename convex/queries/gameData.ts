@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Eclipse: Second Dawn - Game Data Query Helpers
  *
@@ -185,7 +184,7 @@ export const getPlayerUnlockedParts = query({
 
     // Get part details
     return await Promise.all(
-      Array.from(unlockedPartIds).map((id) => ctx.db.get(id))
+      Array.from(unlockedPartIds).map((id) => ctx.db.get(id as any))
     );
   },
 });

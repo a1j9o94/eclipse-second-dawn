@@ -58,17 +58,16 @@ export function RoomLobby({ roomId, onGameStart, onLeaveRoom }: RoomLobbyProps) 
   // Guest navigation: when server moves to playing/setup or combat, enter game view
   useEffect(() => {
     const isServerPlaying = room?.status === 'playing';
-    const phase = gameState?.gamePhase;
+    const phase = (gameState as any)?.currentPhase;
     const hasGamePhase = phase === 'setup' || phase === 'combat' || phase === 'finished';
     if (!isStarting && isServerPlaying && hasGamePhase) {
       setIsStarting(true);
       onGameStart();
     }
-  }, [room?.status, gameState?.gamePhase, isStarting, onGameStart]);
+  }, [room?.status, (gameState as any)?.currentPhase, isStarting, onGameStart]);
 
-  const localPlayerId = currentPlayer?.playerId;
-  const localState = (gameState?.playerStates?.[localPlayerId as string] as { fleetValid?: boolean } | undefined);
-  const localFleetValid = localState?.fleetValid !== false; // undefined treated as valid for now
+  // Eclipse doesn't use playerStates in gameState like the roguelike did
+  const localFleetValid = true; // Always valid for now in Eclipse
 
   const handleReadyToggle = async () => {
     const newReadyState = !isReady;
@@ -140,7 +139,7 @@ export function RoomLobby({ roomId, onGameStart, onLeaveRoom }: RoomLobbyProps) 
               <span>{room.isPublic ? 'Public Room' : 'Private Room'}</span>
               {/* Multiplayer status pill */}
               <span className={`px-2 py-0.5 rounded-full text-xs border ${allReady && players.length===2 ? 'bg-emerald-900/40 border-emerald-600 text-emerald-200' : 'bg-zinc-800 border-zinc-600 text-zinc-300'}`}>
-                {gameState?.gamePhase ?? 'setup'} · {players.filter(p=>p.isReady).length}/{players.length} ready
+                {(gameState as any)?.currentPhase ?? 'setup'} · {players.filter(p=>p.isReady).length}/{players.length} ready
               </span>
             </div>
           </div>
@@ -184,12 +183,12 @@ export function RoomLobby({ roomId, onGameStart, onLeaveRoom }: RoomLobbyProps) 
           <h3 className="font-bold mb-3">Game Settings</h3>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="text-zinc-400">Starting Ships:</span>
-              <span className="ml-2">{room.gameConfig.startingShips}</span>
+              <span className="text-zinc-400">Victory Points Goal:</span>
+              <span className="ml-2">{(room.gameConfig as any).victoryPointGoal ?? 30}</span>
             </div>
             <div>
-              <span className="text-zinc-400">Lives per Player:</span>
-              <span className="ml-2">{room.gameConfig.livesPerPlayer}</span>
+              <span className="text-zinc-400">Rise of Ancients:</span>
+              <span className="ml-2">{(room.gameConfig as any).enableRiseOfTheAncients ? 'Yes' : 'No'}</span>
             </div>
           </div>
         </div>

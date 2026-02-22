@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState } from 'react';
 import { HexGrid, Layout, Hexagon } from 'react-hexgrid';
 import type { EclipseSector } from '../../types/eclipse-sectors';
@@ -24,7 +23,6 @@ type ActionMode = 'retrieve' | 'place';
  * 3. Refresh colony ships (automatic, up to 2)
  */
 export default function InfluenceActionUI({
-  roomId,
   playerId,
   sectors,
   onInfluence,
@@ -222,7 +220,7 @@ export default function InfluenceActionUI({
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .influence-action-ui {
           display: flex;
           flex-direction: column;

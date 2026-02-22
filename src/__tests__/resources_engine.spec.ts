@@ -6,9 +6,6 @@ import { describe, it, expect } from 'vitest';
 import {
   // Types
   type PlayerEconomy,
-  type Resources,
-  type ResourceType,
-  type ProductionResult,
   // Constants
   DEFAULT_STARTING_ECONOMY,
   POPULATION_PRODUCTION_TABLE,
@@ -24,8 +21,8 @@ import {
   removePopulationCube,
   // Influence
   getUpkeepCost,
-  useInfluenceForAction,
-  useInfluenceForSector,
+  placeInfluenceOnAction,
+  placeInfluenceOnSector,
   returnInfluenceFromAction,
   returnInfluenceFromSector,
   addBonusInfluence,
@@ -212,7 +209,7 @@ describe('Influence Disks', () => {
 
   it('should move disk to action and increase upkeep', () => {
     const economy = DEFAULT_STARTING_ECONOMY;
-    const result = useInfluenceForAction(economy);
+    const result = placeInfluenceOnAction(economy);
 
     expect(result.influence.onTrack).toBe(12);
     expect(result.influence.onActions).toBe(1);
@@ -221,7 +218,7 @@ describe('Influence Disks', () => {
 
   it('should move disk to sector and increase upkeep', () => {
     const economy = DEFAULT_STARTING_ECONOMY;
-    const result = useInfluenceForSector(economy);
+    const result = placeInfluenceOnSector(economy);
 
     expect(result.influence.onTrack).toBe(12);
     expect(result.influence.onSectors).toBe(1);
@@ -232,13 +229,13 @@ describe('Influence Disks', () => {
     let economy = DEFAULT_STARTING_ECONOMY;
 
     // Take 3 actions
-    economy = useInfluenceForAction(economy);
-    economy = useInfluenceForAction(economy);
-    economy = useInfluenceForAction(economy);
+    economy = placeInfluenceOnAction(economy);
+    economy = placeInfluenceOnAction(economy);
+    economy = placeInfluenceOnAction(economy);
 
     // Control 2 sectors
-    economy = useInfluenceForSector(economy);
-    economy = useInfluenceForSector(economy);
+    economy = placeInfluenceOnSector(economy);
+    economy = placeInfluenceOnSector(economy);
 
     expect(economy.influence.onTrack).toBe(8);
     expect(economy.influence.onActions).toBe(3);
@@ -251,18 +248,18 @@ describe('Influence Disks', () => {
 
     // Use all 13 disks
     for (let i = 0; i < 13; i++) {
-      economy = useInfluenceForAction(economy);
+      economy = placeInfluenceOnAction(economy);
     }
 
     expect(economy.influence.onTrack).toBe(0);
-    expect(() => useInfluenceForAction(economy)).toThrow();
-    expect(() => useInfluenceForSector(economy)).toThrow();
+    expect(() => placeInfluenceOnAction(economy)).toThrow();
+    expect(() => placeInfluenceOnSector(economy)).toThrow();
   });
 
   it('should return influence from action to track', () => {
     let economy = DEFAULT_STARTING_ECONOMY;
-    economy = useInfluenceForAction(economy);
-    economy = useInfluenceForAction(economy);
+    economy = placeInfluenceOnAction(economy);
+    economy = placeInfluenceOnAction(economy);
 
     expect(economy.influence.onActions).toBe(2);
     expect(economy.influence.upkeepCost).toBe(5);
@@ -275,9 +272,9 @@ describe('Influence Disks', () => {
 
   it('should return influence from sector to track', () => {
     let economy = DEFAULT_STARTING_ECONOMY;
-    economy = useInfluenceForSector(economy);
-    economy = useInfluenceForSector(economy);
-    economy = useInfluenceForSector(economy);
+    economy = placeInfluenceOnSector(economy);
+    economy = placeInfluenceOnSector(economy);
+    economy = placeInfluenceOnSector(economy);
 
     expect(economy.influence.onSectors).toBe(3);
 
@@ -302,7 +299,7 @@ describe('Influence Disks', () => {
 
     // Use 5 disks for actions
     for (let i = 0; i < 5; i++) {
-      economy = useInfluenceForAction(economy);
+      economy = placeInfluenceOnAction(economy);
     }
     expect(economy.influence.onActions).toBe(5);
     expect(economy.influence.onTrack).toBe(8);
@@ -318,11 +315,11 @@ describe('Influence Disks', () => {
     let economy = DEFAULT_STARTING_ECONOMY;
 
     // 3 actions, 2 sectors
-    economy = useInfluenceForAction(economy);
-    economy = useInfluenceForAction(economy);
-    economy = useInfluenceForAction(economy);
-    economy = useInfluenceForSector(economy);
-    economy = useInfluenceForSector(economy);
+    economy = placeInfluenceOnAction(economy);
+    economy = placeInfluenceOnAction(economy);
+    economy = placeInfluenceOnAction(economy);
+    economy = placeInfluenceOnSector(economy);
+    economy = placeInfluenceOnSector(economy);
 
     // Reset after round
     economy = resetInfluenceAfterRound(economy);
@@ -343,7 +340,7 @@ describe('Upkeep Phase', () => {
     for (let i = 0; i < 5; i++) economy = placePopulationCube(economy, 'materials');
 
     // Use 4 influence disks (upkeep = 14)
-    for (let i = 0; i < 4; i++) economy = useInfluenceForAction(economy);
+    for (let i = 0; i < 4; i++) economy = placeInfluenceOnAction(economy);
 
     const production = calculateProduction(economy);
     expect(production.moneyIncome).toBe(3);
@@ -363,7 +360,7 @@ describe('Upkeep Phase', () => {
     for (let i = 0; i < 5; i++) economy = placePopulationCube(economy, 'money');
     for (let i = 0; i < 3; i++) economy = placePopulationCube(economy, 'science');
     for (let i = 0; i < 2; i++) economy = placePopulationCube(economy, 'materials');
-    for (let i = 0; i < 3; i++) economy = useInfluenceForAction(economy);
+    for (let i = 0; i < 3; i++) economy = placeInfluenceOnAction(economy);
 
     const result = executeUpkeep(economy);
 
@@ -385,7 +382,7 @@ describe('Upkeep Phase', () => {
 
     // 2 money income, 10 upkeep = -8 net, but only have 3 money
     for (let i = 0; i < 2; i++) economy = placePopulationCube(economy, 'money');
-    for (let i = 0; i < 3; i++) economy = useInfluenceForAction(economy);
+    for (let i = 0; i < 3; i++) economy = placeInfluenceOnAction(economy);
 
     const result = executeUpkeep(economy);
 
@@ -403,7 +400,7 @@ describe('Upkeep Phase', () => {
     // 0 money income, 2 science, 3 materials, 8 upkeep
     for (let i = 0; i < 2; i++) economy = placePopulationCube(economy, 'science');
     for (let i = 0; i < 3; i++) economy = placePopulationCube(economy, 'materials');
-    for (let i = 0; i < 2; i++) economy = useInfluenceForAction(economy);
+    for (let i = 0; i < 2; i++) economy = placeInfluenceOnAction(economy);
 
     const result = executeUpkeep(economy);
 
@@ -491,18 +488,18 @@ describe('Integration: Full Round Simulation', () => {
     // === START OF ROUND ===
 
     // Action 1: Explore (use influence)
-    economy = useInfluenceForAction(economy);
+    economy = placeInfluenceOnAction(economy);
 
     // Action 2: Explore and colonize (use influence for sector control)
-    economy = useInfluenceForAction(economy);
-    economy = useInfluenceForSector(economy);
+    economy = placeInfluenceOnAction(economy);
+    economy = placeInfluenceOnSector(economy);
 
     // Place population on colonized sector
     economy = placePopulationCube(economy, 'money');
     economy = placePopulationCube(economy, 'science');
 
     // Action 3: Build (use influence)
-    economy = useInfluenceForAction(economy);
+    economy = placeInfluenceOnAction(economy);
 
     // Spend some resources building
     economy = addResources(economy, { materials: 10 }); // Gain some for building

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Adapters to convert between Convex schema and frontend types
  */
@@ -58,7 +57,7 @@ export function convexSectorToEclipse(
   // Discovery tile
   const discoveryTile = sector.hasDiscoveryTile
     ? {
-        id: sector.discoveryTileId || 'unknown',
+        id: (sector.discoveryTileId as string) || 'unknown',
         revealed: false,
         ancientCount: sector.hasAncient ? 1 : 0,
       }
@@ -131,8 +130,7 @@ function generateSectorId(q: number, r: number, type: string): string {
  * Convert EclipseSector back to Convex format (for mutations)
  */
 export function eclipseSectorToConvex(
-  sector: EclipseSector,
-  roomId: string
+  sector: EclipseSector
 ): Partial<Doc<"sectors">> {
   return {
     position: {
@@ -155,7 +153,7 @@ export function eclipseSectorToConvex(
       ? (sector.ancients[0].type === 'cruiser' ? 'cruiser' as const : 'guardian' as const)
       : undefined,
     hasDiscoveryTile: !!sector.discoveryTile,
-    discoveryTileId: sector.discoveryTile?.id,
+    discoveryTileId: sector.discoveryTile?.id as any,
     controlledBy: sector.controlledBy,
     rotation: sector.orientation,
   };

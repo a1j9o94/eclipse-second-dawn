@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Eclipse Second Dawn - Research Panel
  *
@@ -11,7 +10,7 @@
  * Shows available technologies, player's researched techs, and research action
  */
 
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import type { Doc } from '../../../convex/_generated/dataModel';
 import TechTile from './TechTile';
 

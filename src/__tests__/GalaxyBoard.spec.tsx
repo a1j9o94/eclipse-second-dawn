@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import GalaxyBoard from '../components/GalaxyBoard';
-import { Hex } from 'react-hexgrid';
 
 describe('GalaxyBoard', () => {
   it('renders without crashing', () => {

@@ -243,7 +243,7 @@ describe('Turn System', () => {
     });
 
     it('should return false during non-action phases', () => {
-      let state = initializeTurnState(playerIds, 1);
+      const state = initializeTurnState(playerIds, 1);
       state.phase = 'combat';
 
       expect(isActionPhaseComplete(state)).toBe(false);

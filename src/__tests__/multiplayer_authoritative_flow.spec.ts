@@ -15,7 +15,6 @@ function logPhase(prefix: string, gs: GameState, players: PlayerRow[]) {
   const ready = players.map(p => `${p.playerName}:${p.isReady ? '✅' : '❌'}`).join(' ');
   if (process.env.VITEST_DEBUG_AUTH_FLOW) {
     // Optional debug output; disabled by default to keep runner memory low
-    // eslint-disable-next-line no-console
     console.log(`${prefix} phase=${gs.gamePhase} round=${gs.roundNum} ready=[${ready}]`);
   }
 }

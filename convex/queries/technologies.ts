@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { query } from "../_generated/server";
 import { v } from "convex/values";
 
@@ -118,7 +117,7 @@ export const getAvailableTechnologies = query({
   args: {
     roomId: v.id("rooms"),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx) => {
     // Get all technologies from the pool
     const allTechnologies = await ctx.db.query("technologies").collect();
 
@@ -192,7 +191,7 @@ export const getUnlockedParts = query({
 
     // Get part details
     const parts = await Promise.all(
-      Array.from(unlockedPartIds).map((id) => ctx.db.get(id))
+      Array.from(unlockedPartIds).map((id) => ctx.db.get(id as any))
     );
 
     return parts.filter((p) => p !== null);

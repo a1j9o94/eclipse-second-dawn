@@ -338,6 +338,7 @@ export const SHIP_PART_STATS = {
 /**
  * Convert board game ship part to roguelike Part format (for compatibility)
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function convertToRoguelikePart(bgPart: BoardGameShipPart): any {
   const faces: DieFace[] = [];
 

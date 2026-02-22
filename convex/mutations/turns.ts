@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Turn management mutations for Eclipse board game
 // Handles phase progression, turn order, and round management
 
@@ -87,7 +86,6 @@ export const initializeTurns = mutation({
       let startingMaterials = 4;
       let startingScience = 2;
       let startingMoney = 2;
-      let maxInfluenceDisks = 16;
 
       if (factionId) {
         const faction = await ctx.db.get(factionId);
@@ -95,7 +93,6 @@ export const initializeTurns = mutation({
           startingMaterials = faction.startingMaterials;
           startingScience = faction.startingScience;
           startingMoney = faction.startingMoney;
-          maxInfluenceDisks = faction.maxInfluenceDisks;
         }
       }
 
@@ -165,6 +162,7 @@ export const advanceToNextPhase = mutation({
 
     const turnState: TurnState = {
       roundNum: gameState.currentRound,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       phase: gameState.currentPhase as any,
       currentPlayerIndex,
       playerOrder: playerIds,
@@ -202,12 +200,12 @@ export const advanceToNextPhase = mutation({
     const newTurnState = advancePhase(turnState);
 
     // Handle phase-specific logic
-    let newPhase = newTurnState.phase;
-    let newRound = newTurnState.roundNum;
+    const newPhase = newTurnState.phase;
+    const newRound = newTurnState.roundNum;
 
     // Process upkeep if entering upkeep phase
     if (newPhase === 'upkeep') {
-      const upkeepState = processUpkeep(newTurnState);
+      processUpkeep(newTurnState);
 
       // Reset all player influence usage
       for (const playerId of playerIds) {
@@ -230,6 +228,7 @@ export const advanceToNextPhase = mutation({
     // Process income if entering income phase (after upkeep)
     if (currentPhase === 'upkeep' && newPhase !== 'upkeep') {
       // Income phase - distribute resources
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const playerStates: Record<string, { resources: any; economy?: any }> = {};
 
       for (const playerId of playerIds) {
@@ -274,9 +273,12 @@ export const advanceToNextPhase = mutation({
     // Update gameState
     const nextPlayerIndex = (currentPlayerIndex + 1) % playerIds.length;
 
+    // Map GamePhase "end" to schema's "finished"
+    const dbPhase = newPhase === 'end' ? 'finished' : newPhase;
+
     await ctx.db.patch(gameState._id, {
       currentRound: newRound,
-      currentPhase: newPhase,
+      currentPhase: dbPhase as any,
       activePlayerId: newPhase === 'action' ? playerIds[nextPlayerIndex] : gameState.activePlayerId,
       passedPlayers: newPhase === 'action' ? [] : gameState.passedPlayers,
       lastUpdate: Date.now(),

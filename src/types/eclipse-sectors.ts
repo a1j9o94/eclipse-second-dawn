@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Eclipse: Second Dawn for the Galaxy - Sector Type Definitions
  *
@@ -114,12 +113,12 @@ export const OUTER_STACK_SIZE: Record<number, number> = {
  * Helper to determine sector ring from ID
  */
 export function getSectorRing(sectorId: string): SectorRing {
-  if (SECTOR_NUMBERS.center.includes(sectorId)) return 'center';
-  if (SECTOR_NUMBERS.inner.includes(sectorId)) return 'inner';
-  if (SECTOR_NUMBERS.middle.includes(sectorId)) return 'middle';
-  if (SECTOR_NUMBERS.outer.includes(sectorId)) return 'outer';
-  if (SECTOR_NUMBERS.starting.includes(sectorId)) return 'starting';
-  if (SECTOR_NUMBERS.guardian.includes(sectorId)) return 'guardian';
+  if ((SECTOR_NUMBERS.center as readonly string[]).includes(sectorId)) return 'center';
+  if ((SECTOR_NUMBERS.inner as readonly string[]).includes(sectorId)) return 'inner';
+  if ((SECTOR_NUMBERS.middle as readonly string[]).includes(sectorId)) return 'middle';
+  if ((SECTOR_NUMBERS.outer as readonly string[]).includes(sectorId)) return 'outer';
+  if ((SECTOR_NUMBERS.starting as readonly string[]).includes(sectorId)) return 'starting';
+  if ((SECTOR_NUMBERS.guardian as readonly string[]).includes(sectorId)) return 'guardian';
   throw new Error(`Unknown sector ID: ${sectorId}`);
 }
 

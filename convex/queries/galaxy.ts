@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { query } from "../_generated/server";
 import { v } from "convex/values";
 
@@ -108,7 +107,6 @@ export const getGalaxyState = query({
     // Get all sector resources
     const allResources = await ctx.db
       .query("sectorResources")
-      .withIndex("by_room", ["roomId"])
       .filter((q) => q.eq(q.field("roomId"), args.roomId))
       .collect();
 

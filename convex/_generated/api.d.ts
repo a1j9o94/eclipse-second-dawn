@@ -27,6 +27,7 @@ import type * as queries_galaxy from "../queries/galaxy.js";
 import type * as queries_game from "../queries/game.js";
 import type * as queries_gameData from "../queries/gameData.js";
 import type * as queries_players from "../queries/players.js";
+import type * as queries_rooms from "../queries/rooms.js";
 import type * as queries_technologies from "../queries/technologies.js";
 import type * as seedData_factions from "../seedData/factions.js";
 import type * as seedData_index from "../seedData/index.js";
@@ -57,6 +58,7 @@ declare const fullApi: ApiFromModules<{
   "queries/game": typeof queries_game;
   "queries/gameData": typeof queries_gameData;
   "queries/players": typeof queries_players;
+  "queries/rooms": typeof queries_rooms;
   "queries/technologies": typeof queries_technologies;
   "seedData/factions": typeof seedData_factions;
   "seedData/index": typeof seedData_index;

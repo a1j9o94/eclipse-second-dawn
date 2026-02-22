@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState } from 'react';
 import { HexGrid, Layout, Hexagon, Text } from 'react-hexgrid';
 import type { EclipseSector } from '../../types/eclipse-sectors';
@@ -26,7 +25,6 @@ interface MoveActionUIProps {
  * UI for the Move action - allows player to move ships to adjacent sectors
  */
 export default function MoveActionUI({
-  roomId,
   playerId,
   sectors,
   ships,
@@ -201,9 +199,6 @@ export default function MoveActionUI({
                   />
                   {hasPlayerShips && (
                     <Text
-                      q={sector.coordinates.q}
-                      r={sector.coordinates.r}
-                      s={sector.coordinates.s}
                       className="ship-count"
                     >
                       {shipsHere.length}
@@ -263,7 +258,7 @@ export default function MoveActionUI({
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .move-action-ui {
           display: flex;
           flex-direction: column;

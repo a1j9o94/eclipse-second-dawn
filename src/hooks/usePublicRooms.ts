@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 
@@ -27,7 +26,7 @@ export function usePublicRooms() {
     } as const;
   }
   // eslint-disable-next-line react-hooks/rules-of-hooks
-  const rooms = useQuery(api.rooms.getPublicRoomsDetailed, {});
+  const rooms = useQuery(api.queries.rooms.getPublicRoomsDetailed, {});
   return {
     rooms: rooms ?? [],
     isLoading: rooms === undefined,

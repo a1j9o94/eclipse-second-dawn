@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState } from 'react';
 import { HexGrid, Layout, Hexagon } from 'react-hexgrid';
 import type { EclipseSector } from '../../types/eclipse-sectors';
@@ -17,7 +16,6 @@ interface ExploreActionUIProps {
  * to place a new sector tile
  */
 export default function ExploreActionUI({
-  roomId,
   playerId,
   sectors,
   onExplore,
@@ -154,7 +152,7 @@ export default function ExploreActionUI({
         )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         .explore-action-ui {
           display: flex;
           flex-direction: column;

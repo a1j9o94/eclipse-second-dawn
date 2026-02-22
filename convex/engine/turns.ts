@@ -1,8 +1,7 @@
-// @ts-nocheck
 // Turn and action system for Eclipse's 6-phase game loop
 // Server-authoritative turn order and phase management
 
-import type { Resources, Research } from '../../shared/defaults';
+import type { Resources } from '../../shared/defaults';
 
 // Eclipse has 6 phases per round
 export type GamePhase =

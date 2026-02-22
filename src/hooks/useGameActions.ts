@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * React hooks for Eclipse game actions
  *
@@ -135,7 +134,11 @@ export function useUpgradeAction() {
       removeParts?: Id<"parts">[];
     }) => {
       try {
-        const result = await upgradeMutation(args);
+        const result = await upgradeMutation({
+          ...args,
+          addParts: args.addParts || [],
+          removeParts: args.removeParts || [],
+        });
         return { success: true, data: result };
       } catch (error) {
         return {
@@ -211,8 +214,19 @@ export function useMoveAction() {
       shipIds: Id<"ships">[];
     }) => {
       try {
-        const result = await moveMutation(args);
-        return { success: true, data: result };
+        // The mutation expects a single shipId, so we'll move ships one at a time
+        // This is a workaround for the API mismatch
+        const results = [];
+        for (const shipId of args.shipIds) {
+          const result = await moveMutation({
+            roomId: args.roomId,
+            playerId: args.playerId,
+            shipId,
+            toSectorId: args.toSectorId,
+          });
+          results.push(result);
+        }
+        return { success: true, data: results };
       } catch (error) {
         return {
           success: false,
@@ -234,7 +248,7 @@ export function useMoveAction() {
  * ```
  */
 export function usePassAction() {
-  const passMutation = useMutation(api.mutations.turns.passAction);
+  const passMutation = useMutation(api.mutations.turns.passTurn);
 
   return useCallback(
     async (args: {

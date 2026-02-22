@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { MultiplayerGameConfig } from "../../shared/multiplayer";
@@ -56,33 +55,33 @@ export function useMultiplayerGame(roomId: Id<"rooms"> | null) {
   /* eslint-disable react-hooks/rules-of-hooks */
   // Queries
   const roomDetails = useQuery(
-    api.rooms.getRoomDetails,
-    roomId ? { roomId } : "skip"
-  );
-  
-  const gameState = useQuery(
-    api.gameState.getGameState,
+    api.queries.rooms.getRoomDetails,
     roomId ? { roomId } : "skip"
   );
 
-  // Mutations
-  const createRoom = useMutation(api.rooms.createRoom);
-  const joinRoom = useMutation(api.rooms.joinRoom);
-  const updatePlayerReady = useMutation(api.rooms.updatePlayerReady);
-  const updatePlayerFleetValidity = useMutation(api.gameState.updatePlayerFleetValidity);
-  const restartToSetup = useMutation(api.rooms.restartToSetup);
-  const startGame = useMutation(api.rooms.startGame);
-  const prepareRematch = useMutation(api.rooms.prepareRematch);
-  const setPlayerFaction = useMutation(api.rooms.setPlayerFaction);
-  const updateGameState = useMutation(api.gameState.updateGameState);
-  const endCombatToSetup = useMutation(api.gameState.endCombatToSetup);
-  const submitFleetSnapshot = useMutation(api.gameState.submitFleetSnapshot);
-  const resolveCombatResult = useMutation(api.gameState.resolveCombatResult);
-  const resignMatch = useMutation(api.gameState.resignMatch);
-  const switchTurn = useMutation(api.gameState.switchTurn);
-  const updateGamePhase = useMutation(api.gameState.updateGamePhase);
-  const initializeGameState = useMutation(api.gameState.initializeGameState);
-  const ackRoundPlayed = useMutation(api.gameState.ackRoundPlayed);
+  const gameState = useQuery(
+    api.queries.game.getGameState,
+    roomId ? { roomId } : "skip"
+  );
+
+  // Mutations - These don't exist yet in the new Eclipse schema, stubbing as undefined
+  const createRoom: any = undefined;
+  const joinRoom: any = undefined;
+  const updatePlayerReady: any = undefined;
+  const updatePlayerFleetValidity: any = undefined;
+  const restartToSetup: any = undefined;
+  const startGame: any = undefined;
+  const prepareRematch: any = undefined;
+  const setPlayerFaction: any = undefined;
+  const updateGameState: any = undefined;
+  const endCombatToSetup: any = undefined;
+  const submitFleetSnapshot: any = undefined;
+  const resolveCombatResult: any = undefined;
+  const resignMatch: any = undefined;
+  const switchTurn: any = undefined;
+  const updateGamePhase: any = undefined;
+  const initializeGameState: any = undefined;
+  const ackRoundPlayed: any = undefined;
   /* eslint-enable react-hooks/rules-of-hooks */
 
   // Get current player info from localStorage
@@ -100,7 +99,7 @@ export function useMultiplayerGame(roomId: Id<"rooms"> | null) {
 
   const isMyTurn = () => {
     const playerId = getPlayerId();
-    return gameState?.currentTurn === playerId;
+    return gameState?.activePlayerId === playerId;
   };
 
   const getCurrentPlayer = () => {
@@ -114,13 +113,15 @@ export function useMultiplayerGame(roomId: Id<"rooms"> | null) {
   };
 
   const getMyGameState = (): PlayerState | null => {
-    const playerId = getPlayerId();
-    return playerId ? (gameState?.playerStates[playerId] as PlayerState) || null : null;
+    // In the new Eclipse schema, player state is tracked separately in playerResources table
+    // For now, return null as this is legacy roguelike code
+    return null;
   };
 
   const getOpponentGameState = (): PlayerState | null => {
-    const opponent = getOpponent();
-    return opponent ? (gameState?.playerStates[opponent.playerId] as PlayerState) || null : null;
+    // In the new Eclipse schema, player state is tracked separately in playerResources table
+    // For now, return null as this is legacy roguelike code
+    return null;
   };
 
   // Room management actions
