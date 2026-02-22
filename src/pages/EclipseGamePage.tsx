@@ -10,6 +10,7 @@ import TechnologyTree from '../components/TechnologyTree';
 import BuildActionUI from '../components/actions/BuildActionUI';
 import UpgradeActionUI from '../components/actions/UpgradeActionUI';
 import MoveActionUI from '../components/actions/MoveActionUI';
+import CombatUI from '../components/CombatUI';
 import type { EclipseSector } from '../types/eclipse-sectors';
 
 interface EclipseGamePageProps {
@@ -51,6 +52,9 @@ export default function EclipseGamePage({
     playerId ? { roomId, playerId } : 'skip'
   );
 
+  // Fetch combat results for current round
+  const combatResults = useQuery(api.queries.game.getCurrentRoundCombatResults, { roomId });
+
   // Mutations
   const passTurn = useMutation(api.mutations.turns.passTurn);
   const advanceToNextPhase = useMutation(api.mutations.turns.advanceToNextPhase);
@@ -68,6 +72,9 @@ export default function EclipseGamePage({
 
   // State for pass confirmation
   const [showPassConfirm, setShowPassConfirm] = useState(false);
+
+  // State for combat display
+  const [currentCombatIndex, setCurrentCombatIndex] = useState(0);
 
   // Auto-advance phases when all players pass
   useEffect(() => {
@@ -566,6 +573,48 @@ export default function EclipseGamePage({
               onMove={handleMove}
               onCancel={handleCloseAction}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Combat Phase UI */}
+      {gameState.currentPhase === 'combat' && combatResults && combatResults.length > 0 && (
+        <CombatUI
+          combatResult={{
+            winnerPlayerId: combatResults[currentCombatIndex]?.winner || '',
+            roundLog: combatResults[currentCombatIndex]?.events.map(e => e.data) || [],
+            finalA: [],
+            finalB: [],
+          }}
+          playerAName={
+            allPlayers?.find(p => p.playerId === combatResults[currentCombatIndex]?.attackerId)?.playerName || 'Player A'
+          }
+          playerBName={
+            allPlayers?.find(p => p.playerId === combatResults[currentCombatIndex]?.defenderId)?.playerName || 'Player B'
+          }
+          onClose={() => {
+            // Move to next combat or advance phase
+            if (currentCombatIndex < combatResults.length - 1) {
+              setCurrentCombatIndex(currentCombatIndex + 1);
+            } else {
+              setCurrentCombatIndex(0);
+              // Host advances phase automatically (handled by useEffect)
+            }
+          }}
+        />
+      )}
+
+      {/* No Combat Message */}
+      {gameState.currentPhase === 'combat' && combatResults && combatResults.length === 0 && (
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-8 max-w-md border-2 border-gray-700">
+            <h2 className="text-2xl font-bold text-gray-300 mb-4">Combat Phase</h2>
+            <p className="text-lg text-gray-400 mb-6">
+              No combat this round. All sectors are peaceful.
+            </p>
+            <div className="text-center text-gray-500">
+              Advancing to next phase...
+            </div>
           </div>
         </div>
       )}

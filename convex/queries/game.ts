@@ -100,3 +100,31 @@ export const getPlayerActionCount = query({
     return actions.length;
   },
 });
+
+/**
+ * Get combat results for current round
+ */
+export const getCurrentRoundCombatResults = query({
+  args: {
+    roomId: v.id("rooms"),
+  },
+  handler: async (ctx, args) => {
+    const gameState = await ctx.db
+      .query("gameState")
+      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
+      .first();
+
+    if (!gameState) {
+      return [];
+    }
+
+    const combatLogs = await ctx.db
+      .query("combatLog")
+      .withIndex("by_room_round", (q) =>
+        q.eq("roomId", args.roomId).eq("round", gameState.currentRound ?? 1)
+      )
+      .collect();
+
+    return combatLogs;
+  },
+});
