@@ -20,6 +20,8 @@ import type * as engine_technology from "../engine/technology.js";
 import type * as engine_turns from "../engine/turns.js";
 import type * as helpers_economy from "../helpers/economy.js";
 import type * as helpers_log from "../helpers/log.js";
+import type * as migrations_clearAllData from "../migrations/clearAllData.js";
+import type * as migrations_clearOldGameState from "../migrations/clearOldGameState.js";
 import type * as mutations_actions from "../mutations/actions.js";
 import type * as mutations_seed from "../mutations/seed.js";
 import type * as mutations_turns from "../mutations/turns.js";
@@ -51,6 +53,8 @@ declare const fullApi: ApiFromModules<{
   "engine/turns": typeof engine_turns;
   "helpers/economy": typeof helpers_economy;
   "helpers/log": typeof helpers_log;
+  "migrations/clearAllData": typeof migrations_clearAllData;
+  "migrations/clearOldGameState": typeof migrations_clearOldGameState;
   "mutations/actions": typeof mutations_actions;
   "mutations/seed": typeof mutations_seed;
   "mutations/turns": typeof mutations_turns;

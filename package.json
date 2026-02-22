@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "codegen": "convex codegen",
-    "build": "npm run codegen && tsc -b && vite build",
+    "build": "tsc -b && vite build",
+    "build:with-codegen": "npm run codegen && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "NODE_OPTIONS=--max-old-space-size=4096 vitest run",

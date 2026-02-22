@@ -32,6 +32,10 @@ export default defineSchema({
       enableRiseOfTheAncients: v.optional(v.boolean()),
       enableShadowOfTheRift: v.optional(v.boolean()),
       victoryPointGoal: v.optional(v.number()), // default varies by player count
+      // Legacy roguelike fields
+      startingShips: v.optional(v.number()),
+      livesPerPlayer: v.optional(v.number()),
+      multiplayerLossPct: v.optional(v.number()),
     }),
     createdAt: v.number(),
   })
@@ -48,6 +52,9 @@ export default defineSchema({
     isReady: v.boolean(),
     turnOrder: v.optional(v.number()), // 0-indexed position in turn order
     joinedAt: v.number(),
+    // Legacy roguelike fields
+    lives: v.optional(v.number()),
+    faction: v.optional(v.string()),
   })
     .index("by_room", ["roomId"])
     .index("by_player_id", ["playerId"])
@@ -59,20 +66,20 @@ export default defineSchema({
 
   gameState: defineTable({
     roomId: v.id("rooms"),
-    currentRound: v.number(), // 1-9 rounds
-    currentPhase: v.union(
+    currentRound: v.optional(v.number()), // 1-9 rounds
+    currentPhase: v.optional(v.union(
       v.literal("setup"),
       v.literal("action"),
       v.literal("combat"),
       v.literal("upkeep"),
       v.literal("cleanup"),
       v.literal("finished")
-    ),
+    )),
     activePlayerId: v.optional(v.string()), // current player during action phase
-    passedPlayers: v.array(v.string()), // playerIds who have passed this round
+    passedPlayers: v.optional(v.array(v.string())), // playerIds who have passed this round
 
     // Combat tracking
-    activeCombats: v.array(
+    activeCombats: v.optional(v.array(
       v.object({
         sectorId: v.id("sectors"),
         attackerId: v.string(),
@@ -84,11 +91,21 @@ export default defineSchema({
           v.literal("resolved")
         ),
       })
-    ),
+    )),
 
     // Round tracking
-    roundStartTime: v.number(),
-    lastUpdate: v.number(),
+    roundStartTime: v.optional(v.number()),
+    lastUpdate: v.optional(v.number()),
+
+    // Legacy roguelike fields (temporary for migration)
+    combatQueue: v.optional(v.any()),
+    currentTurn: v.optional(v.string()),
+    gamePhase: v.optional(v.string()),
+    playerStates: v.optional(v.any()),
+    roundNum: v.optional(v.number()),
+    matchResult: v.optional(v.any()),
+    roundSeed: v.optional(v.string()),
+    acks: v.optional(v.any()),
   }).index("by_room", ["roomId"]),
 
   // ============================================================================
