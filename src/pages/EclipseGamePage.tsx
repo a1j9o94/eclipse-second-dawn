@@ -3,6 +3,14 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import ConnectedGalaxyBoard from '../components/galaxy/ConnectedGalaxyBoard';
+import { useGameActions } from '../hooks/useGameActions';
+import ExploreActionUI from '../components/actions/ExploreActionUI';
+import InfluenceActionUI from '../components/actions/InfluenceActionUI';
+import TechnologyTree from '../components/TechnologyTree';
+import BuildActionUI from '../components/actions/BuildActionUI';
+import UpgradeActionUI from '../components/actions/UpgradeActionUI';
+import MoveActionUI from '../components/actions/MoveActionUI';
+import type { EclipseSector } from '../types/eclipse-sectors';
 
 interface EclipseGamePageProps {
   roomId: Id<"rooms">;
@@ -36,8 +44,18 @@ export default function EclipseGamePage({
   );
   const allPlayers = useQuery(api.queries.game.getPlayers, { roomId });
 
+  // Fetch sectors and ships for action UIs
+  const sectors = useQuery(api.queries.galaxy.getSectors, { roomId });
+  const ships = useQuery(
+    api.queries.players.getPlayerShips,
+    playerId ? { roomId, playerId } : 'skip'
+  );
+
   // Mutations
   const passTurn = useMutation(api.mutations.turns.passTurn);
+
+  // Game actions
+  const actions = useGameActions();
 
   // Calculate derived state
   const isMyTurn = gameState?.activePlayerId === playerId;
@@ -71,6 +89,122 @@ export default function EclipseGamePage({
   // Close action overlay
   const handleCloseAction = () => {
     setActiveAction(null);
+  };
+
+  // Convert sectors to EclipseSector format for action UIs
+  const eclipseSectors: EclipseSector[] = (sectors || []).map(sector => ({
+    id: sector._id,
+    ring: sector.type === 'center' ? 'center' : sector.type === 'inner' ? 'inner' : 'outer',
+    explored: true,
+    orientation: sector.rotation as 0 | 1 | 2 | 3 | 4 | 5,
+    coordinates: {
+      q: sector.position.q,
+      r: sector.position.r,
+      s: -(sector.position.q + sector.position.r),
+    },
+    populationSquares: sector.planets.map(planet => ({
+      type: planet.type as 'money' | 'science' | 'materials',
+      advanced: planet.isAdvanced,
+      resources: planet.isAdvanced ? 2 : 1,
+    })),
+    wormholes: sector.warpPortals.map(portal => ({
+      direction: portal as 0 | 1 | 2 | 3 | 4 | 5,
+      type: 'normal' as const,
+    })),
+    discoveryTile: sector.hasDiscoveryTile ? {
+      id: `discovery-${sector._id}`,
+      revealed: false,
+      ancientCount: sector.hasAncient ? 1 : 0,
+    } : undefined,
+    controlledBy: sector.controlledBy || undefined,
+    influenceDisk: sector.controlledBy || undefined,
+    ships: [],
+    ancients: [],
+  }));
+
+  // Action handlers
+  const handleExplore = async (position: { q: number; r: number }) => {
+    if (!playerId) return;
+    const result = await actions.explore({ roomId, playerId, position });
+    if (result.success) {
+      setActiveAction(null);
+    } else {
+      alert(result.error);
+    }
+  };
+
+  const handleInfluence = async (args: {
+    retrieveFrom?: Id<"sectors">[];
+    placeTo?: Id<"sectors">[];
+  }) => {
+    if (!playerId) return;
+    const result = await actions.influence({
+      roomId,
+      playerId,
+      retrieveFrom: args.retrieveFrom,
+      placeTo: args.placeTo,
+    });
+    if (result.success) {
+      setActiveAction(null);
+    } else {
+      alert(result.error);
+    }
+  };
+
+  const handleBuild = async (blueprintId: Id<"blueprints">, sectorId: Id<"sectors">) => {
+    if (!playerId) return;
+    const result = await actions.build({
+      roomId,
+      playerId,
+      blueprintId,
+      sectorId,
+    });
+    if (result.success) {
+      setActiveAction(null);
+    } else {
+      alert(result.error);
+    }
+  };
+
+  const handleUpgrade = async (
+    blueprintId: Id<"blueprints">,
+    removeParts: Id<"parts">[],
+    addParts: Id<"parts">[]
+  ) => {
+    if (!playerId) return;
+    const result = await actions.upgrade({
+      roomId,
+      playerId,
+      blueprintId,
+      removeParts,
+      addParts,
+    });
+    if (result.success) {
+      setActiveAction(null);
+    } else {
+      alert(result.error);
+    }
+  };
+
+  const handleMove = async (shipId: Id<"ships">, toSectorId: Id<"sectors">) => {
+    if (!playerId) return;
+    const ship = ships?.find(s => s._id === shipId);
+    if (!ship) {
+      alert('Ship not found');
+      return;
+    }
+    const result = await actions.move({
+      roomId,
+      playerId,
+      shipIds: [shipId],
+      fromSectorId: ship.sectorId,
+      toSectorId,
+    });
+    if (result.success) {
+      // Don't close modal, allow multiple moves
+    } else {
+      alert(result.error);
+    }
   };
 
   if (!gameState || !playerResources) {
@@ -225,12 +359,92 @@ export default function EclipseGamePage({
         </div>
       </div>
 
-      {/* Action Overlay */}
-      {activeAction && (
-        <ActionOverlay
-          action={activeAction}
-          onClose={handleCloseAction}
+      {/* Action Modals */}
+      {activeAction === 'explore' && playerId && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-8 max-w-6xl w-full mx-4 border border-gray-700 max-h-[90vh] overflow-auto">
+            <ExploreActionUI
+              roomId={roomId}
+              playerId={playerId}
+              sectors={eclipseSectors}
+              onExplore={handleExplore}
+              onCancel={handleCloseAction}
+            />
+          </div>
+        </div>
+      )}
+
+      {activeAction === 'influence' && playerId && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-8 max-w-6xl w-full mx-4 border border-gray-700 max-h-[90vh] overflow-auto">
+            <InfluenceActionUI
+              roomId={roomId}
+              playerId={playerId}
+              sectors={eclipseSectors}
+              onInfluence={handleInfluence}
+              onCancel={handleCloseAction}
+            />
+          </div>
+        </div>
+      )}
+
+      {activeAction === 'research' && playerId && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-8 max-w-6xl w-full mx-4 border border-gray-700 max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-white">Research Technology</h2>
+              <button
+                onClick={handleCloseAction}
+                className="text-gray-400 hover:text-white text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+            <div onClick={(e) => {
+              // Check if the research completed successfully
+              // TechnologyTree handles its own research, we just close the modal
+              const target = e.target as HTMLElement;
+              if (target.closest('.tech-tile-researched')) {
+                setTimeout(() => setActiveAction(null), 500);
+              }
+            }}>
+              <TechnologyTree roomId={roomId} playerId={playerId} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeAction === 'build' && playerId && (
+        <BuildActionUI
+          roomId={roomId}
+          playerId={playerId}
+          onBuild={handleBuild}
+          onCancel={handleCloseAction}
         />
+      )}
+
+      {activeAction === 'upgrade' && playerId && (
+        <UpgradeActionUI
+          roomId={roomId}
+          playerId={playerId}
+          onUpgrade={handleUpgrade}
+          onCancel={handleCloseAction}
+        />
+      )}
+
+      {activeAction === 'move' && playerId && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-8 max-w-6xl w-full mx-4 border border-gray-700 max-h-[90vh] overflow-auto">
+            <MoveActionUI
+              roomId={roomId}
+              playerId={playerId}
+              sectors={eclipseSectors}
+              ships={ships || []}
+              onMove={handleMove}
+              onCancel={handleCloseAction}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
@@ -269,44 +483,3 @@ function ActionButton({ label, onClick, disabled, color }: ActionButtonProps) {
   );
 }
 
-// Action Overlay Component (Placeholder)
-interface ActionOverlayProps {
-  action: ActionType;
-  onClose: () => void;
-}
-
-function ActionOverlay({ action, onClose }: ActionOverlayProps) {
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-lg p-8 max-w-2xl w-full mx-4 border border-gray-700">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white capitalize">
-            {action} Action
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white text-2xl font-bold"
-          >
-            ×
-          </button>
-        </div>
-
-        <div className="text-gray-300 mb-6">
-          <p>Select target for {action} action.</p>
-          <p className="text-sm text-gray-500 mt-2">
-            (Action UI will be implemented here)
-          </p>
-        </div>
-
-        <div className="flex justify-end gap-4">
-          <button
-            onClick={onClose}
-            className="px-6 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-semibold transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}

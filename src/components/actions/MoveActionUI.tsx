@@ -4,7 +4,7 @@ import type { EclipseSector } from '../../types/eclipse-sectors';
 import type { Id } from '../../../convex/_generated/dataModel';
 
 interface Ship {
-  id: Id<"ships">;
+  _id: Id<"ships">;
   sectorId: Id<"sectors">;
   playerId: string;
   blueprintId: Id<"blueprints">;
@@ -73,7 +73,7 @@ export default function MoveActionUI({
 
     setIsMoving(true);
     try {
-      await onMove(selectedShip.id, targetSector as Id<"sectors">);
+      await onMove(selectedShip._id, targetSector as Id<"sectors">);
       setSelectedShip(null);
       setTargetSector(null);
     } catch (error) {
@@ -120,18 +120,18 @@ export default function MoveActionUI({
           ) : (
             availableShips.map((ship) => {
               const sector = sectors.find(s => s.id === ship.sectorId);
-              const isSelected = selectedShip?.id === ship.id;
+              const isSelected = selectedShip?._id === ship._id;
 
               return (
                 <button
-                  key={ship.id}
+                  key={ship._id}
                   onClick={() => {
                     setSelectedShip(ship);
                     setTargetSector(null);
                   }}
                   className={`ship-button ${isSelected ? 'selected' : ''}`}
                 >
-                  <div className="ship-name">Ship {ship.id.slice(-4)}</div>
+                  <div className="ship-name">Ship {ship._id.slice(-4)}</div>
                   <div className="ship-location">
                     {sector?.coordinates
                       ? `(${sector.coordinates.q}, ${sector.coordinates.r})`
@@ -216,7 +216,7 @@ export default function MoveActionUI({
           <h3>Selected Ship</h3>
           {selectedShip ? (
             <>
-              <p>Ship ID: {selectedShip.id.slice(-8)}</p>
+              <p>Ship ID: {selectedShip._id.slice(-8)}</p>
               <p>
                 Location:{' '}
                 {

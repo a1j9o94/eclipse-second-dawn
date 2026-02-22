@@ -173,7 +173,6 @@ export function useBuildAction() {
       playerId: string;
       sectorId: Id<"sectors">;
       blueprintId: Id<"blueprints">;
-      quantity: number;
     }) => {
       try {
         const result = await buildMutation(args);
