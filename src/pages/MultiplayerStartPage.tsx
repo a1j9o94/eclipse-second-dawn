@@ -259,13 +259,32 @@ export default function MultiplayerStartPage({ onRoomJoined, onBack, currentFact
     );
   }
 
-  // No intermediate menu; default back to home
+  // Main menu - choose create or join
   return (
-    <div className="min-h-screen text-zinc-100 p-4">
-      <div className="max-w-md mx-auto space-y-6">
-        <div className="text-center text-zinc-400">Redirecting…</div>
-        <div className="text-center">
-          <button onClick={onBack} className="px-3 py-2 bg-zinc-700 hover:bg-zinc-600 rounded">Back</button>
+    <div className="min-h-screen text-zinc-100 p-4 flex items-center justify-center">
+      <div className="max-w-md w-full mx-auto space-y-8">
+        <div className="text-center space-y-2">
+          <h1 className="text-4xl font-bold tracking-tight">Eclipse: Second Dawn</h1>
+          <p className="text-zinc-400 text-lg">Multiplayer Space Strategy</p>
+        </div>
+
+        <div className="space-y-4">
+          <button
+            onClick={() => setMode('create')}
+            className="w-full px-6 py-4 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-lg font-semibold transition-colors"
+          >
+            Create Game
+          </button>
+          <button
+            onClick={() => setMode('join')}
+            className="w-full px-6 py-4 bg-blue-600 hover:bg-blue-500 rounded-lg text-lg font-semibold transition-colors"
+          >
+            Join Game
+          </button>
+        </div>
+
+        <div className="text-center text-zinc-500 text-sm">
+          Build fleets, research technologies, explore the galaxy
         </div>
       </div>
     </div>
