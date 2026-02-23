@@ -47,7 +47,6 @@ export function getPreGameElement(props: PreGameRouterProps): ReactElement | nul
       return createElement(MultiplayerStartPage, {
         onRoomJoined: props.onRoomJoined,
         onBack: props.onBack,
-        currentFaction: props.faction,
         initialMode: props.multiplayerStartMode || 'menu',
         initialIsPublic: props.multiplayerCreatePublic || false,
       })

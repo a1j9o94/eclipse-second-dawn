@@ -127,7 +127,7 @@ export function useMultiplayerGame(roomId: Id<"rooms"> | null) {
   };
 
   // Room management actions
-  const handleCreateRoom = async (roomName: string, isPublic: boolean, playerName: string, gameConfig: MultiplayerGameConfig, playerFaction?: string) => {
+  const handleCreateRoom = async (roomName: string, isPublic: boolean, playerName: string, gameConfig: MultiplayerGameConfig) => {
     if (!isConvexAvailable) {
       throw new Error("Multiplayer features are not available. Please check your connection and try again.");
     }
@@ -140,14 +140,8 @@ export function useMultiplayerGame(roomId: Id<"rooms"> | null) {
       });
       setPlayerId(result.playerId);
 
-      // If a faction was provided, set it immediately
-      if (playerFaction) {
-        await setPlayerFaction({
-          roomId: result.roomId,
-          playerId: result.playerId,
-          factionName: playerFaction,
-        });
-      }
+      // Don't set faction during room creation - let the player select it in the lobby
+      // Faction selection happens via FactionPickModal in RoomLobby component
 
       return result;
     } catch (error) {
@@ -156,7 +150,7 @@ export function useMultiplayerGame(roomId: Id<"rooms"> | null) {
     }
   };
 
-  const handleJoinRoom = async (roomCode: string, playerName: string, playerFaction?: string) => {
+  const handleJoinRoom = async (roomCode: string, playerName: string) => {
     if (!isConvexAvailable) {
       throw new Error("Multiplayer features are not available. Please check your connection and try again.");
     }
@@ -190,14 +184,8 @@ export function useMultiplayerGame(roomId: Id<"rooms"> | null) {
       const result = await joinRoom({ roomCode: normalized, playerName });
       setPlayerId(result.playerId);
 
-      // If a faction was provided, set it immediately after joining
-      if (playerFaction && roomId) {
-        await setPlayerFaction({
-          roomId: result.roomId,
-          playerId: result.playerId,
-          factionName: playerFaction,
-        });
-      }
+      // Don't set faction during room join - let the player select it in the lobby
+      // Faction selection happens via FactionPickModal in RoomLobby component
 
       return result;
     } catch (error) {
