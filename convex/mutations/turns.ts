@@ -205,178 +205,8 @@ export const advanceToNextPhase = mutation({
     const newPhase = newTurnState.phase;
     const newRound = newTurnState.roundNum;
 
-    // Process combat if entering combat phase
-    if (newPhase === 'combat') {
-      // Find all sectors with ships from multiple players
-      const sectors = await ctx.db
-        .query("sectors")
-        .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
-        .collect();
-
-      for (const sector of sectors) {
-        const shipsInSector = await ctx.db
-          .query("ships")
-          .withIndex("by_room_sector", (q) =>
-            q.eq("roomId", args.roomId).eq("sectorId", sector._id)
-          )
-          .collect();
-
-        // Group ships by player
-        const shipsByPlayer: Record<string, typeof shipsInSector> = {};
-        for (const ship of shipsInSector) {
-          if (!ship.isDestroyed) {
-            if (!shipsByPlayer[ship.playerId]) {
-              shipsByPlayer[ship.playerId] = [];
-            }
-            shipsByPlayer[ship.playerId].push(ship);
-          }
-        }
-
-        const playerIds = Object.keys(shipsByPlayer);
-
-        // If there are ships from 2+ players in this sector, run combat
-        if (playerIds.length >= 2) {
-          // For simplicity, take first two players (in a full implementation, handle multi-player combat)
-          const playerAId = playerIds[0];
-          const playerBId = playerIds[1];
-
-          // Convert ships to ShipSnap format for combat simulation
-          const buildShipSnap = async (ship: typeof shipsInSector[0]): Promise<ShipSnap> => {
-            const blueprint = await ctx.db.get(ship.blueprintId);
-            if (!blueprint) {
-              throw new Error(`Blueprint not found for ship ${ship._id}`);
-            }
-
-            // Get all parts
-            const allParts = [
-              blueprint.parts.hull,
-              blueprint.parts.powerSource,
-              ...blueprint.parts.drives,
-              ...blueprint.parts.computers,
-              ...blueprint.parts.shields,
-              ...blueprint.parts.weapons,
-            ];
-
-            const parts = await Promise.all(
-              allParts.map(async (partId) => {
-                const part = await ctx.db.get(partId);
-                return part;
-              })
-            );
-
-            // Build weapon list
-            const weapons = parts
-              .filter((p) => p && (p.type === 'cannon' || p.type === 'missile'))
-              .map((w) => {
-                if (!w) return null;
-                const faces = [];
-                if (w.diceType && w.diceCount > 0) {
-                  // Simplified dice faces (would need proper dice table lookup)
-                  for (let i = 0; i < 6; i++) {
-                    faces.push({ roll: i + 1, dmg: 1 });
-                  }
-                }
-                return {
-                  name: w.name,
-                  dice: w.diceCount,
-                  dmgPerHit: 1,
-                  faces,
-                };
-              })
-              .filter((w): w is NonNullable<typeof w> => w !== null);
-
-            // Calculate stats
-            const computerBonus = parts
-              .filter((p) => p && p.type === 'computer')
-              .reduce((sum, c) => sum + (c?.initiativeBonus || 0), 0);
-
-            const shieldTier = parts
-              .filter((p) => p && p.type === 'shield')
-              .length;
-
-            return {
-              frame: { id: blueprint.shipType, name: blueprint.name },
-              weapons,
-              riftDice: 0, // TODO: Add rift cannon support
-              stats: {
-                init: blueprint.initiative,
-                hullCap: blueprint.hull,
-                valid: blueprint.isValid,
-                aim: computerBonus,
-                shieldTier,
-                regen: 0,
-              },
-              hull: blueprint.hull - ship.damage,
-              alive: !ship.isDestroyed,
-              partIds: allParts.map(String),
-            };
-          };
-
-          const fleetA = await Promise.all(
-            shipsByPlayer[playerAId].map(buildShipSnap)
-          );
-          const fleetB = await Promise.all(
-            shipsByPlayer[playerBId].map(buildShipSnap)
-          );
-
-          // Generate a deterministic seed from room + round + sector
-          const seed = `${args.roomId}-${gameState.currentRound}-${sector._id}`;
-
-          // Run combat simulation
-          const result = simulateCombat({
-            seed,
-            playerAId,
-            playerBId,
-            fleetA,
-            fleetB,
-          });
-
-          // Convert roundLog to combat events
-          const events = result.roundLog.map((logEntry, index) => ({
-            type: logEntry.includes('💥') ? 'destroyed' as const :
-                  logEntry.includes('→') ? 'attack' as const :
-                  'initiative' as const,
-            playerId: logEntry.includes('🟦') ? playerAId : playerBId,
-            data: logEntry,
-            timestamp: Date.now() + index,
-          }));
-
-          // Store combat log
-          await ctx.db.insert("combatLog", {
-            roomId: args.roomId,
-            sectorId: sector._id,
-            round: gameState.currentRound ?? 1,
-            attackerId: playerAId,
-            defenderId: playerBId,
-            events,
-            winner: result.winnerPlayerId,
-            completedAt: Date.now(),
-          });
-
-          // Update ships based on final state
-          const updateFleet = async (fleet: ShipSnap[], playerId: string) => {
-            const playerShips = shipsByPlayer[playerId];
-            for (let i = 0; i < Math.min(fleet.length, playerShips.length); i++) {
-              const finalShip = fleet[i];
-              const dbShip = playerShips[i];
-              await ctx.db.patch(dbShip._id, {
-                damage: finalShip.stats.hullCap - finalShip.hull,
-                isDestroyed: !finalShip.alive,
-              });
-            }
-          };
-
-          await updateFleet(result.finalA, playerAId);
-          await updateFleet(result.finalB, playerBId);
-
-          logInfo('combat', 'simulated', {
-            tag: roomTag(args.roomId as unknown as string),
-            sector: sector._id,
-            winner: result.winnerPlayerId,
-          });
-        }
-      }
-    }
+    // Combat phase is now handled separately via processCombat mutation
+    // This allows players to retreat before combat is simulated
 
     // Process upkeep if entering upkeep phase
     if (newPhase === 'upkeep') {
@@ -596,8 +426,288 @@ export const passTurn = mutation({
   },
 });
 
+/**
+ * Process combat for all contested sectors
+ * Should be called after retreat phase is complete
+ */
+export const processCombat = mutation({
+  args: {
+    roomId: v.id("rooms"),
+  },
+  handler: async (ctx, args) => {
+    const gameState = await ctx.db
+      .query("gameState")
+      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
+      .first();
+
+    if (!gameState) {
+      throw new Error("Game state not found");
+    }
+
+    if (gameState.currentPhase !== 'combat') {
+      throw new Error("Can only process combat during combat phase");
+    }
+
+    // Find all sectors with ships from multiple players
+    const sectors = await ctx.db
+      .query("sectors")
+      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
+      .collect();
+
+    for (const sector of sectors) {
+      const shipsInSector = await ctx.db
+        .query("ships")
+        .withIndex("by_room_sector", (q) =>
+          q.eq("roomId", args.roomId).eq("sectorId", sector._id)
+        )
+        .collect();
+
+      // Group ships by player
+      const shipsByPlayer: Record<string, typeof shipsInSector> = {};
+      for (const ship of shipsInSector) {
+        if (!ship.isDestroyed) {
+          if (!shipsByPlayer[ship.playerId]) {
+            shipsByPlayer[ship.playerId] = [];
+          }
+          shipsByPlayer[ship.playerId].push(ship);
+        }
+      }
+
+      const playerIds = Object.keys(shipsByPlayer);
+
+      // If there are ships from 2+ players in this sector, run combat
+      if (playerIds.length >= 2) {
+        // For simplicity, take first two players (in a full implementation, handle multi-player combat)
+        const playerAId = playerIds[0];
+        const playerBId = playerIds[1];
+
+        // Convert ships to ShipSnap format for combat simulation
+        const buildShipSnap = async (ship: typeof shipsInSector[0]): Promise<ShipSnap> => {
+          const blueprint = await ctx.db.get(ship.blueprintId);
+          if (!blueprint) {
+            throw new Error(`Blueprint not found for ship ${ship._id}`);
+          }
+
+          // Get all parts
+          const allParts = [
+            blueprint.parts.hull,
+            blueprint.parts.powerSource,
+            ...blueprint.parts.drives,
+            ...blueprint.parts.computers,
+            ...blueprint.parts.shields,
+            ...blueprint.parts.weapons,
+          ];
+
+          const parts = await Promise.all(
+            allParts.map(async (partId) => {
+              const part = await ctx.db.get(partId);
+              return part;
+            })
+          );
+
+          // Build weapon list
+          const weapons = parts
+            .filter((p) => p && (p.type === 'cannon' || p.type === 'missile'))
+            .map((w) => {
+              if (!w) return null;
+              const faces = [];
+              if (w.diceType && w.diceCount > 0) {
+                // Simplified dice faces (would need proper dice table lookup)
+                for (let i = 0; i < 6; i++) {
+                  faces.push({ roll: i + 1, dmg: 1 });
+                }
+              }
+              return {
+                name: w.name,
+                dice: w.diceCount,
+                dmgPerHit: 1,
+                faces,
+              };
+            })
+            .filter((w): w is NonNullable<typeof w> => w !== null);
+
+          // Calculate stats
+          const computerBonus = parts
+            .filter((p) => p && p.type === 'computer')
+            .reduce((sum, c) => sum + (c?.initiativeBonus || 0), 0);
+
+          const shieldTier = parts
+            .filter((p) => p && p.type === 'shield')
+            .length;
+
+          return {
+            frame: { id: blueprint.shipType, name: blueprint.name },
+            weapons,
+            riftDice: 0, // TODO: Add rift cannon support
+            stats: {
+              init: blueprint.initiative,
+              hullCap: blueprint.hull,
+              valid: blueprint.isValid,
+              aim: computerBonus,
+              shieldTier,
+              regen: 0,
+            },
+            hull: blueprint.hull - ship.damage,
+            alive: !ship.isDestroyed,
+            partIds: allParts.map(String),
+          };
+        };
+
+        const fleetA = await Promise.all(
+          shipsByPlayer[playerAId].map(buildShipSnap)
+        );
+        const fleetB = await Promise.all(
+          shipsByPlayer[playerBId].map(buildShipSnap)
+        );
+
+        // Generate a deterministic seed from room + round + sector
+        const seed = `${args.roomId}-${gameState.currentRound}-${sector._id}`;
+
+        // Run combat simulation
+        const result = simulateCombat({
+          seed,
+          playerAId,
+          playerBId,
+          fleetA,
+          fleetB,
+        });
+
+        // Convert roundLog to combat events
+        const events = result.roundLog.map((logEntry, index) => ({
+          type: logEntry.includes('💥') ? 'destroyed' as const :
+                logEntry.includes('→') ? 'attack' as const :
+                'initiative' as const,
+          playerId: logEntry.includes('🟦') ? playerAId : playerBId,
+          data: logEntry,
+          timestamp: Date.now() + index,
+        }));
+
+        // Store combat log
+        await ctx.db.insert("combatLog", {
+          roomId: args.roomId,
+          sectorId: sector._id,
+          round: gameState.currentRound ?? 1,
+          attackerId: playerAId,
+          defenderId: playerBId,
+          events,
+          winner: result.winnerPlayerId,
+          completedAt: Date.now(),
+        });
+
+        // Update ships based on final state
+        const updateFleet = async (fleet: ShipSnap[], playerId: string) => {
+          const playerShips = shipsByPlayer[playerId];
+          for (let i = 0; i < Math.min(fleet.length, playerShips.length); i++) {
+            const finalShip = fleet[i];
+            const dbShip = playerShips[i];
+            await ctx.db.patch(dbShip._id, {
+              damage: finalShip.stats.hullCap - finalShip.hull,
+              isDestroyed: !finalShip.alive,
+            });
+          }
+        };
+
+        await updateFleet(result.finalA, playerAId);
+        await updateFleet(result.finalB, playerBId);
+
+        logInfo('combat', 'simulated', {
+          tag: roomTag(args.roomId as unknown as string),
+          sector: sector._id,
+          winner: result.winnerPlayerId,
+        });
+      }
+    }
+
+    return { success: true };
+  },
+});
+
+/**
+ * Retreat a ship from combat
+ * Ship moves to an adjacent sector before combat is resolved
+ */
+export const retreatShip = mutation({
+  args: {
+    roomId: v.id("rooms"),
+    playerId: v.string(),
+    shipId: v.id("ships"),
+    toSectorId: v.id("sectors"),
+  },
+  handler: async (ctx, args) => {
+    const gameState = await ctx.db
+      .query("gameState")
+      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
+      .first();
+
+    if (!gameState) {
+      throw new Error("Game state not found");
+    }
+
+    // Retreat is only allowed during combat phase
+    if (gameState.currentPhase !== 'combat') {
+      throw new Error("Can only retreat during combat phase");
+    }
+
+    // Get the ship
+    const ship = await ctx.db.get(args.shipId);
+    if (!ship) {
+      throw new Error("Ship not found");
+    }
+
+    // Verify ship belongs to player
+    if (ship.playerId !== args.playerId) {
+      throw new Error("Cannot retreat another player's ship");
+    }
+
+    // Verify ship is not destroyed
+    if (ship.isDestroyed) {
+      throw new Error("Cannot retreat a destroyed ship");
+    }
+
+    // Get current sector
+    const fromSector = await ctx.db.get(ship.sectorId);
+    if (!fromSector) {
+      throw new Error("Current sector not found");
+    }
+
+    // Get destination sector
+    const toSector = await ctx.db.get(args.toSectorId);
+    if (!toSector) {
+      throw new Error("Destination sector not found");
+    }
+
+    // Verify sectors are adjacent (simple check - share an edge)
+    const distance = Math.max(
+      Math.abs(fromSector.position.q - toSector.position.q),
+      Math.abs(fromSector.position.r - toSector.position.r),
+      Math.abs((-fromSector.position.q - fromSector.position.r) - (-toSector.position.q - toSector.position.r))
+    );
+
+    if (distance !== 1) {
+      throw new Error("Can only retreat to an adjacent sector");
+    }
+
+    // Move the ship
+    await ctx.db.patch(ship._id, {
+      sectorId: args.toSectorId,
+    });
+
+    logInfo('combat', 'ship retreated', {
+      tag: roomTag(args.roomId as unknown as string),
+      playerId: args.playerId,
+      shipId: args.shipId,
+      fromSector: ship.sectorId,
+      toSector: args.toSectorId,
+    });
+
+    return { success: true };
+  },
+});
+
 export default {
   initializeTurns,
   advanceToNextPhase,
   passTurn,
+  processCombat,
+  retreatShip,
 };

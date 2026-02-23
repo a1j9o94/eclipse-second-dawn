@@ -11,6 +11,7 @@ import BuildActionUI from '../components/actions/BuildActionUI';
 import UpgradeActionUI from '../components/actions/UpgradeActionUI';
 import MoveActionUI from '../components/actions/MoveActionUI';
 import CombatUI from '../components/CombatUI';
+import PreCombatUI from '../components/PreCombatUI';
 import VictoryScreen from '../components/VictoryScreen';
 import type { EclipseSector } from '../types/eclipse-sectors';
 
@@ -68,14 +69,23 @@ export default function EclipseGamePage({
   const hasPassed = gameState?.passedPlayers?.includes(playerId || '') || false;
   const canAct = isMyTurn && gameState?.currentPhase === 'action' && !hasPassed;
 
-  // Get current player name
+  // Get current player name and host status
   const currentPlayerName = allPlayers?.find(p => p.playerId === gameState?.activePlayerId)?.playerName || 'Unknown';
+  const isHost = allPlayers?.find(p => p.playerId === playerId)?.isHost || false;
 
   // State for pass confirmation
   const [showPassConfirm, setShowPassConfirm] = useState(false);
 
   // State for combat display
   const [currentCombatIndex, setCurrentCombatIndex] = useState(0);
+  const [showPreCombat, setShowPreCombat] = useState(true);
+
+  // Reset pre-combat flag when entering combat phase
+  useEffect(() => {
+    if (gameState?.currentPhase === 'combat') {
+      setShowPreCombat(true);
+    }
+  }, [gameState?.currentPhase]);
 
   // Auto-advance phases when all players pass
   useEffect(() => {
@@ -104,11 +114,13 @@ export default function EclipseGamePage({
         .catch((error) => console.error('Failed to auto-advance phase:', error));
     }
 
-    // For non-action phases, auto-advance quickly (combat, upkeep, income, cleanup are server-handled)
+    // For non-action phases, auto-advance quickly (upkeep, income, cleanup are server-handled)
+    // Combat phase is NOT auto-advanced because it requires player interaction (retreat)
     if (
       gameState.currentPhase !== 'action' &&
       gameState.currentPhase !== 'setup' &&
-      gameState.currentPhase !== 'finished'
+      gameState.currentPhase !== 'finished' &&
+      gameState.currentPhase !== 'combat' // Don't auto-advance combat
     ) {
       // Short delay to let server process, then advance
       const timer = setTimeout(() => {
@@ -583,8 +595,20 @@ export default function EclipseGamePage({
         </div>
       )}
 
+      {/* Pre-Combat UI - Allow retreat before combat simulation */}
+      {gameState.currentPhase === 'combat' && playerId && showPreCombat && (
+        <PreCombatUI
+          roomId={roomId}
+          playerId={playerId}
+          isHost={isHost}
+          onContinueToCombat={() => {
+            setShowPreCombat(false);
+          }}
+        />
+      )}
+
       {/* Combat Phase UI */}
-      {gameState.currentPhase === 'combat' && combatResults && combatResults.length > 0 && (
+      {gameState.currentPhase === 'combat' && !showPreCombat && combatResults && combatResults.length > 0 && (
         <CombatUI
           combatResult={{
             winnerPlayerId: combatResults[currentCombatIndex]?.winner || '',
@@ -604,23 +628,37 @@ export default function EclipseGamePage({
               setCurrentCombatIndex(currentCombatIndex + 1);
             } else {
               setCurrentCombatIndex(0);
-              // Host advances phase automatically (handled by useEffect)
+              // Advance to next phase
+              if (isHost) {
+                advanceToNextPhase({ roomId })
+                  .then(() => console.log('Phase advanced successfully'))
+                  .catch((error) => console.error('Failed to advance phase:', error));
+              }
             }
           }}
         />
       )}
 
       {/* No Combat Message */}
-      {gameState.currentPhase === 'combat' && combatResults && combatResults.length === 0 && (
+      {gameState.currentPhase === 'combat' && !showPreCombat && combatResults && combatResults.length === 0 && (
         <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
           <div className="bg-gray-800 rounded-lg p-8 max-w-md border-2 border-gray-700">
             <h2 className="text-2xl font-bold text-gray-300 mb-4">Combat Phase</h2>
             <p className="text-lg text-gray-400 mb-6">
               No combat this round. All sectors are peaceful.
             </p>
-            <div className="text-center text-gray-500">
-              Advancing to next phase...
-            </div>
+            <button
+              onClick={() => {
+                if (isHost) {
+                  advanceToNextPhase({ roomId })
+                    .then(() => console.log('Phase advanced successfully'))
+                    .catch((error) => console.error('Failed to advance phase:', error));
+                }
+              }}
+              className="w-full px-6 py-3 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold"
+            >
+              {isHost ? 'Continue to Next Phase' : 'Waiting for host...'}
+            </button>
           </div>
         </div>
       )}
