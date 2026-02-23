@@ -12,6 +12,7 @@ import {
 } from "../engine/turns";
 import { logInfo, roomTag } from "../helpers/log";
 import { simulateCombat, type ShipSnap } from "../engine/combat";
+import { calculateScores } from "./scoring";
 
 /**
  * Initialize turn system for a new game
@@ -442,6 +443,20 @@ export const advanceToNextPhase = mutation({
           });
         }
       }
+    }
+
+    // Check if game should end (after round 9 cleanup)
+    const maxRounds = 9; // Standard Eclipse game length
+    if (gameState.currentRound === maxRounds && newPhase === 'end') {
+      // Trigger final scoring
+      await calculateScores(ctx, args.roomId);
+
+      logInfo('turns', 'game ended', {
+        tag: roomTag(args.roomId as unknown as string),
+        finalRound: gameState.currentRound,
+      });
+
+      return { success: true, newPhase: 'finished', newRound };
     }
 
     // Update gameState

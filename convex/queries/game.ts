@@ -128,3 +128,20 @@ export const getCurrentRoundCombatResults = query({
     return combatLogs;
   },
 });
+
+/**
+ * Get game results (final scores)
+ */
+export const getGameResults = query({
+  args: {
+    roomId: v.id("rooms"),
+  },
+  handler: async (ctx, args) => {
+    const results = await ctx.db
+      .query("gameResults")
+      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
+      .first();
+
+    return results;
+  },
+});

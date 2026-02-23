@@ -11,6 +11,7 @@ import BuildActionUI from '../components/actions/BuildActionUI';
 import UpgradeActionUI from '../components/actions/UpgradeActionUI';
 import MoveActionUI from '../components/actions/MoveActionUI';
 import CombatUI from '../components/CombatUI';
+import VictoryScreen from '../components/VictoryScreen';
 import type { EclipseSector } from '../types/eclipse-sectors';
 
 interface EclipseGamePageProps {
@@ -270,6 +271,11 @@ export default function EclipseGamePage({
         <div className="text-white text-xl">Loading game...</div>
       </div>
     );
+  }
+
+  // Show victory screen if game is finished
+  if (gameState.currentPhase === 'finished') {
+    return <VictoryScreen roomId={roomId} onReturnToLobby={onLeaveGame} />;
   }
 
   // Phase color coding
